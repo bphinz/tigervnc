@@ -44,7 +44,6 @@ public class DecodeManager {
     producerCond = queueMutex.newCondition();
     consumerCond = queueMutex.newCondition();
 
-    //cpuCount = 1;
     cpuCount = Runtime.getRuntime().availableProcessors();
     String env = System.getenv("TIGERVNC_NTHREADS");
     if (env != null && env.length() > 0) {
@@ -168,11 +167,11 @@ public class DecodeManager {
                               bufferStream.length(), conn.cp,
                               entry.affectedRegion);
 
+    queueMutex.lock();
+
     // The workers add buffers to the end so it's safe to assume
     // the front is still the same buffer
     freeBuffers.removeFirst();
-
-    queueMutex.lock();
 
     workQueue.addLast(entry);
 
@@ -266,6 +265,7 @@ public class DecodeManager {
     public void run()
     {
       manager.queueMutex.lock();
+
       while (!stopRequested) {
         QueueEntry entry;
 
@@ -274,7 +274,7 @@ public class DecodeManager {
         if (entry == null) {
           // Wait and try again
           try {
-          manager.consumerCond.await();
+            manager.consumerCond.await();
           } catch (InterruptedException e) { }
           continue;
         }
@@ -298,7 +298,7 @@ public class DecodeManager {
         manager.queueMutex.lock();
 
         // Remove the entry from the queue and give back the memory buffer
-        manager.freeBuffers.add(entry.bufferStream);
+        manager.freeBuffers.addLast(entry.bufferStream);
         manager.workQueue.remove(entry);
         entry = null;
 
@@ -324,7 +324,7 @@ public class DecodeManager {
       if (!manager.workQueue.peek().active)
         return manager.workQueue.peek();
 
-      for (iter = manager.workQueue.iterator(); iter.hasNext();) {
+      next:for (iter = manager.workQueue.iterator(); iter.hasNext();) {
         QueueEntry entry;
 
         Iterator<QueueEntry> iter2;
@@ -334,7 +334,7 @@ public class DecodeManager {
         // Another thread working on this?
         if (entry.active) {
           lockedRegion.assign_union(entry.affectedRegion);
-          continue;
+          continue next;
         }
 
         // If this is an ordered decoder then make sure this is the first
@@ -343,7 +343,7 @@ public class DecodeManager {
           for (iter2 = manager.workQueue.iterator(); iter2.hasNext() && iter2 != iter;) {
             if (entry.encoding == (iter2.next()).encoding) {
               lockedRegion.assign_union(entry.affectedRegion);
-              continue;
+              continue next;
             }
           }
         }
@@ -363,14 +363,14 @@ public class DecodeManager {
                                               entry2.bufferStream.length(),
                                               entry.cp))
               lockedRegion.assign_union(entry.affectedRegion);
-              continue;
+              continue next;
           }
         }
 
         // Check overlap with earlier rectangles
         if (!lockedRegion.intersect(entry.affectedRegion).is_empty()) {
           lockedRegion.assign_union(entry.affectedRegion);
-          continue;
+          continue next;
         }
 
         return entry;
