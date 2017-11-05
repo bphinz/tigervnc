@@ -211,16 +211,29 @@ public class CMsgWriter {
     endMsg();
   }
 
-  synchronized public void writeKeyEvent(int key, boolean down)
+  synchronized public void keyEvent(int keysym, int keycode, boolean down)
   {
-    startMsg(MsgTypes.msgTypeKeyEvent);
-    os.writeU8(down?1:0);
-    os.pad(2);
-    os.writeU32(key);
-    endMsg();
+    if (!cp.supportsQEMUKeyEvent || keycode == 0) {
+      /* This event isn't meaningful without a valid keysym */
+      if (keysym == 0)
+        return;
+
+      startMsg(MsgTypes.msgTypeKeyEvent);
+      os.writeU8(down?1:0);
+      os.pad(2);
+      os.writeU32(keysym);
+      endMsg();
+    } else {
+      startMsg(MsgTypes.msgTypeQEMUClientMessage);
+      os.writeU8(QEMUTypes.qemuExtendedKeyEvent);
+      os.writeU16(down?1:0);
+      os.writeU32(keysym);
+      os.writeU32(keycode);
+      endMsg();
+    }
   }
 
-  synchronized public void writePointerEvent(Point pos, int buttonMask)
+  synchronized public void pointerEvent(Point pos, int buttonMask)
   {
     Point p = new Point(pos.x,pos.y);
     if (p.x < 0) p.x = 0;

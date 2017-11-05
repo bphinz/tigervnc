@@ -46,4 +46,6 @@ public class MsgTypes {
   public static final int msgTypeClientFence = 248;
 
   public static final int msgTypeSetDesktopSize = 251;
+
+  public static final int msgTypeQEMUClientMessage = 255;
 }

@@ -43,6 +43,7 @@ public class ConnParams {
     supportsDesktopResize = false; supportsExtendedDesktopSize = false;
     supportsDesktopRename = false; supportsLastRect = false;
     supportsSetDesktopSize = false; supportsFence = false;
+    supportsQEMUKeyEvent = false;
     supportsContinuousUpdates = false;
     supportsClientRedirect = false;
     compressLevel = 6; qualityLevel = -1; fineQualityLevel = -1;
@@ -134,6 +135,7 @@ public class ConnParams {
     supportsExtendedDesktopSize = false;
     supportsLocalXCursor = false;
     supportsLastRect = false;
+    supportsQEMUKeyEvent = false;
     compressLevel = -1;
     qualityLevel = -1;
     fineQualityLevel = -1;
@@ -167,6 +169,9 @@ public class ConnParams {
         break;
       case Encodings.pseudoEncodingLastRect:
         supportsLastRect = true;
+        break;
+      case Encodings.pseudoEncodingQEMUKeyEvent:
+        supportsQEMUKeyEvent = true;
         break;
       case Encodings.pseudoEncodingFence:
         supportsFence = true;
@@ -223,6 +228,7 @@ public class ConnParams {
   public boolean supportsExtendedDesktopSize;
   public boolean supportsDesktopRename;
   public boolean supportsLastRect;
+  public boolean supportsQEMUKeyEvent;
   public boolean supportsClientRedirect;
 
   public boolean supportsSetDesktopSize;
