@@ -38,6 +38,7 @@ abstract public class CSecurity {
   abstract public int getType();
   abstract public String description();
   public boolean isSecure() { return false; }
+  public String[] getWarnings() { return new String[0]; }
 
   /*
    * Use variable directly instead of dumb get/set methods.

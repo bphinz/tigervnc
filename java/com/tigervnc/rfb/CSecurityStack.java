@@ -21,6 +21,8 @@
 
 package com.tigervnc.rfb;
 
+import java.util.*;
+
 public class CSecurityStack extends CSecurity {
 
   public CSecurityStack(int Type, String Name, CSecurity s0,
@@ -66,6 +68,17 @@ public class CSecurityStack extends CSecurity {
     if (state == 1 && state1 != null && state1.isSecure())
       return true;
     return false;
+  }
+
+  public String[] getWarnings()
+  {
+    List<String> warnings = new ArrayList<String>();
+    // We only want warnings about the connection security,
+    // so we only consider state0 for security warnings.
+    if (state0 != null)
+      for (String s : state0.getWarnings())
+        warnings.add(s);
+    return warnings.toArray(new String[warnings.size()]);
   }
 
   public final int getType() { return type; }

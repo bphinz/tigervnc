@@ -34,7 +34,7 @@ public class CSecurityPlain extends CSecurity {
     StringBuffer username = new StringBuffer();
     StringBuffer password = new StringBuffer();
 
-    upg.getUserPasswd(cc.isSecure(), username, password);
+    upg.getUserPasswd(cc.isSecure(), cc.getSecurityWarnings(), username, password);
 
     // Return the response to the server
     os.writeU32(username.length());
@@ -54,6 +54,10 @@ public class CSecurityPlain extends CSecurity {
 
   public int getType() { return Security.secTypePlain; }
   public String description() { return "ask for username and password"; }
+  public String[] getWarnings() {
+    String[] warnings = { "Connection is not encrypted" };
+    return warnings;
+  }
 
   static LogWriter vlog = new LogWriter("Plain");
 }

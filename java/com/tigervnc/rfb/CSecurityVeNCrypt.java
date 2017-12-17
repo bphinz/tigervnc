@@ -192,6 +192,14 @@ public class CSecurityVeNCrypt extends CSecurity {
     return false;
   }
 
+  public String[] getWarnings()
+  {
+    if (csecurity != null)
+      return csecurity.getWarnings();
+    else
+      return new String[0];
+  }
+
   public static StringParameter secTypesStr;
 
   private CSecurity csecurity;

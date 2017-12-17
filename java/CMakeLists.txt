@@ -129,8 +129,10 @@ if(NOT "${SRCDIR}" STREQUAL "${BINDIR}")
 set(ICONS
 tigervnc.ico
 tigervnc.png
+info-circle.png
 insecure.png
-secure.png)
+secure.png
+secure-warning.png)
 
 foreach(icon ${ICONS})
   add_custom_command(OUTPUT ${BINDIR}/${CLASSPATH}/${icon}
@@ -150,8 +152,10 @@ add_custom_command(OUTPUT VncViewer.jar
     ${BINDIR}/${CLASSPATH}/timestamp
     ${BINDIR}/${CLASSPATH}/tigervnc.ico
     ${BINDIR}/${CLASSPATH}/tigervnc.png
+    ${BINDIR}/${CLASSPATH}/info-circle.png
     ${BINDIR}/${CLASSPATH}/insecure.png
     ${BINDIR}/${CLASSPATH}/secure.png
+    ${BINDIR}/${CLASSPATH}/secure-warning.png
   COMMAND ${JAVA_ARCHIVE}
   ARGS cfm VncViewer.jar
     ${SRCDIR}/${CLASSPATH}/MANIFEST.MF

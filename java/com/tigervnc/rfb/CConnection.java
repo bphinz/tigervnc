@@ -390,6 +390,9 @@ abstract public class CConnection extends CMsgHandler {
   public String getServerName() { return serverName; }
 
   public boolean isSecure() { return csecurity != null ? csecurity.isSecure() : false; }
+  public String[] getSecurityWarnings() {
+    return csecurity != null ? csecurity.getWarnings() : new String[0];
+  }
 
   public static final int RFBSTATE_UNINITIALISED = 0;
   public static final int RFBSTATE_PROTOCOL_VERSION = 1;

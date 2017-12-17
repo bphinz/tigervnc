@@ -36,7 +36,7 @@ public class CSecurityVncAuth extends CSecurity {
     byte[] challenge = new byte[vncAuthChallengeSize];
     is.readBytes(challenge, 0, vncAuthChallengeSize);
     StringBuffer passwd = new StringBuffer();
-    upg.getUserPasswd(cc.isSecure(), null, passwd);
+    upg.getUserPasswd(cc.isSecure(), cc.getSecurityWarnings(), null, passwd);
 
     // Calculate the correct response
     byte[] key = new byte[8];
@@ -61,6 +61,10 @@ public class CSecurityVncAuth extends CSecurity {
 
   public int getType() { return Security.secTypeVncAuth; }
   public String description() { return "No Encryption"; }
+  public String[] getWarnings() {
+    String[] warnings = { "Connection is not encrypted" };
+    return warnings;
+  }
 
   static LogWriter vlog = new LogWriter("VncAuth");
 }

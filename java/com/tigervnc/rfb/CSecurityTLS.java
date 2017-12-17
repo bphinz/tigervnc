@@ -81,6 +81,7 @@ public class CSecurityTLS extends CSecurity {
   {
     anon = _anon;
     manager = null;
+    warnings = new ArrayList<String>();
 
     setDefaults();
     cafile = X509CA.getData();
@@ -154,6 +155,7 @@ public class CSecurityTLS extends CSecurity {
 
     if (anon) {
       try {
+        warnings.add("Connection uses anonymous TLS");
         ctx.init(null, null, null);
       } catch(KeyManagementException e) {
         throw new AuthFailureException(e.toString());
@@ -266,6 +268,7 @@ public class CSecurityTLS extends CSecurity {
 			      "The certificate of the server has expired, "+
 			      "do you want to continue?"))
           throw new AuthFailureException("server certificate has expired");
+        warnings.add("Server certificate expired on "+cert.getNotAfter().toString());
       }
       String thumbprint = getThumbprint(cert);
       File vncDir = new File(FileUtils.getVncHomeDir());
@@ -274,9 +277,12 @@ public class CSecurityTLS extends CSecurity {
       if (vncDir.exists() && certFile.exists() && certFile.canRead()) {
         InputStream certStream = new MyFileInputStream(certFile);
         certs = cf.generateCertificates(certStream);
-        for (Certificate c : certs)
-          if (thumbprint.equals(getThumbprint((X509Certificate)c)))
+        for (Certificate c : certs) {
+          if (thumbprint.equals(getThumbprint((X509Certificate)c))) {
+            warnings.add("You have added a security exception for this site");
             return;
+          }
+        }
       }
       try {
         verifyHostname(cert);
@@ -297,9 +303,9 @@ public class CSecurityTLS extends CSecurity {
             "\n"+
             "Do you want to save it and continue?";
           if (!msg.showMsgBox(YES_NO_OPTION, "certificate issuer unknown",
-                certinfo)) {
+                certinfo))
             throw new AuthFailureException("certificate issuer unknown");
-          }
+          warnings.add("Server certificate issuer unknown");
           if (certs == null || !certs.contains(cert)) {
             byte[] der = cert.getEncoded();
             String pem = DatatypeConverter.printBase64Binary(der);
@@ -395,6 +401,7 @@ public class CSecurityTLS extends CSecurity {
           null, answer, answer[0]);
         if (ret != JOptionPane.YES_OPTION)
           throw new WarningException("Hostname verification failed.");
+        warnings.add("Server certificate is invalid (host name mismatch)");
       } catch (CertificateParsingException e) {
         throw new SystemException(e.getMessage());
       } catch (InvalidNameException e) {
@@ -463,6 +470,7 @@ public class CSecurityTLS extends CSecurity {
   public final String description()
     { return anon ? "TLS Encryption without VncAuth" : "X509 Encryption without VncAuth"; }
   public boolean isSecure() { return !anon; }
+  public String[] getWarnings() { return warnings.toArray(new String[warnings.size()]); }
 
   protected CConnection client;
 
@@ -470,6 +478,7 @@ public class CSecurityTLS extends CSecurity {
   private SSLEngine engine;
   private SSLEngineManager manager;
   private boolean anon;
+  private List<String> warnings;
 
   private String cafile, crlfile;
   private FdInStream is;
