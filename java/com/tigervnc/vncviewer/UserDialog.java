@@ -173,19 +173,23 @@ public class UserDialog implements UserPasswdGetter, UserMsgBox
     info.add(new JLabel(new ImageIcon(info_icon)));
     info.add(Box.createHorizontalStrut(2));
 
-    String tmpl = 
-      new String("<html><font color=%s size=5>%s<pre>%s</pre></html>");
+    JLabel title;
+    String tmpl = new String("<html><pre>%s</pre></html>");
     String warn = new String();
     for (int i=0; i < warnings.length; i++)
       warn += warnings[i]+"\n";
     if (secure) {
-      info.setToolTipText(String.format(tmpl, "#058B00", "Connection is secure", warn));
+      title = new JLabel("Connection is secure", JLabel.LEFT);
+      title.setForeground(new Color(0,204,0));
+      info.setToolTipText(String.format(tmpl, warn));
       if (warnings.length == 0)
         info.add(new JLabel(new ImageIcon(secure_icon)));
       else
         info.add(new JLabel(new ImageIcon(warning_icon)));
     } else {
-      info.setToolTipText(String.format(tmpl, "#d74345", "Connection is not secure", warn));
+      title = new JLabel("Connection is not secure", JLabel.LEFT);
+      title.setForeground(Color.RED);
+      info.setToolTipText(String.format(tmpl, warn));
       info.add(new JLabel(new ImageIcon(insecure_icon)));
     }
     banner.add(info);
@@ -195,7 +199,7 @@ public class UserDialog implements UserPasswdGetter, UserMsgBox
     separator.setMaximumSize(new Dimension(1, Integer.MAX_VALUE));
     banner.add(separator);
     banner.add(Box.createHorizontalStrut(3));
-    banner.add(new JLabel(VncViewer.cc.getServerName(), JLabel.LEFT));
+    banner.add(title);
     banner.add(Box.createHorizontalGlue());
 
     msg.add(banner);
