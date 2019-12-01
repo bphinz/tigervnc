@@ -23,9 +23,9 @@ Source2: vncserver.sysconfig
 Source11: https://www.fltk.org/pub/fltk/1.3.5/fltk-1.3.5-source.tar.gz
 Source13: http://downloads.sourceforge.net/project/libpng/libpng16/1.6.37/libpng-1.6.37.tar.gz
 Source14: https://ftp.gnu.org/gnu/gmp/gmp-6.1.2.tar.bz2
-Source15: http://ftp.gnu.org/gnu/libtasn1/libtasn1-4.13.tar.gz
+Source15: http://ftp.gnu.org/gnu/libtasn1/libtasn1-4.14.tar.gz
 Source16: https://ftp.gnu.org/gnu/nettle/nettle-3.5.1.tar.gz
-Source17: ftp://ftp.gnutls.org/gcrypt/gnutls/v3.3/gnutls-3.3.30.tar.xz
+Source17: https://www.gnupg.org/ftp/gcrypt/gnutls/v3.6/gnutls-3.6.11.tar.xz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 BuildRequires: gcc, gcc-c++
