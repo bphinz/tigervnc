@@ -23,7 +23,7 @@ Source2: vncserver.sysconfig
 Source11: https://www.fltk.org/pub/fltk/1.3.5/fltk-1.3.5-source.tar.gz
 Source13: http://downloads.sourceforge.net/project/libpng/libpng16/1.6.37/libpng-1.6.37.tar.gz
 Source14: https://ftp.gnu.org/gnu/gmp/gmp-6.1.2.tar.bz2
-Source15: http://ftp.gnu.org/gnu/libtasn1/libtasn1-4.15.0.tar.gz
+Source15: http://ftp.gnu.org/gnu/libtasn1/libtasn1-4.13.tar.gz
 Source16: https://ftp.gnu.org/gnu/nettle/nettle-3.5.1.tar.gz
 Source17: ftp://ftp.gnutls.org/gcrypt/gnutls/v3.3/gnutls-3.3.30.tar.xz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
@@ -192,7 +192,7 @@ popd
 
 echo "*** Building libtasn1 ***"
 pushd libtasn1-*
-LDFLAGS="-L%{static_lib_buildroot}%{_libdir} $LDFLAGS" CFLAGS="$CFLAGS -std=c99" CXXFLAGS="$CXXFLAGS -std=c99" ./configure --prefix=%{_prefix} --libdir=%{_libdir} --enable-static --disable-shared --host=%{_host} --build=%{_build} --disable-doc
+LDFLAGS="-L%{static_lib_buildroot}%{_libdir} $LDFLAGS" ./configure --prefix=%{_prefix} --libdir=%{_libdir} --enable-static --disable-shared --host=%{_host} --build=%{_build} --disable-doc
 make %{?_smp_mflags} DESTDIR=%{static_lib_buildroot} install
 find %{static_lib_buildroot}%{_prefix} -type f -name "*.la" -delete
 find %{static_lib_buildroot}%{_prefix} -type f -name "*.pc" -exec sed -i -e "s|libdir=%{_libdir}|libdir=%{static_lib_buildroot}%{_libdir}|" {} \;
