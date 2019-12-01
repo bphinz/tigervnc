@@ -192,7 +192,7 @@ popd
 
 echo "*** Building libtasn1 ***"
 pushd libtasn1-*
-LDFLAGS="-L%{static_lib_buildroot}%{_libdir} $LDFLAGS" ./configure --prefix=%{_prefix} --libdir=%{_libdir} --enable-static --disable-shared --host=%{_host} --build=%{_build}
+LDFLAGS="-L%{static_lib_buildroot}%{_libdir} $LDFLAGS" CFLAGS="$CFLAGS -std=c99" ./configure --prefix=%{_prefix} --libdir=%{_libdir} --enable-static --disable-shared --host=%{_host} --build=%{_build}
 make %{?_smp_mflags} DESTDIR=%{static_lib_buildroot} install
 find %{static_lib_buildroot}%{_prefix} -type f -name "*.la" -delete
 find %{static_lib_buildroot}%{_prefix} -type f -name "*.pc" -exec sed -i -e "s|libdir=%{_libdir}|libdir=%{static_lib_buildroot}%{_libdir}|" {} \;
