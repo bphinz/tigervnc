@@ -26,8 +26,6 @@
 	<string>@VERSION@</string>
 	<key>CFBundleVersion</key>
 	<string>@VERSION@f@BUILD@</string>
-	<key>LSRequiresCarbon</key>
-	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 1998-2011 [many holders]</string>
 </dict>
