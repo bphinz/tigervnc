@@ -172,11 +172,6 @@ void VNCServerST::removeSocket(network::Socket* sock) {
         clipboardClient = NULL;
       clipboardRequestors.remove(*ci);
 
-      // Adjust the exit timers
-      connectTimer.stop();
-      if (rfb::Server::maxDisconnectionTime && clients.empty())
-        disconnectTimer.start(secsToMillis(rfb::Server::maxDisconnectionTime));
-
       // - Delete the per-Socket resources
       delete *ci;
 
@@ -192,6 +187,11 @@ void VNCServerST::removeSocket(network::Socket* sock) {
 
       if (comparer)
         comparer->logStats();
+
+      // Adjust the exit timers
+      connectTimer.stop();
+      if (rfb::Server::maxDisconnectionTime && clients.empty())
+        disconnectTimer.start(secsToMillis(rfb::Server::maxDisconnectionTime));
 
       return;
     }
@@ -339,7 +339,7 @@ void VNCServerST::requestClipboard()
   if (clipboardClient == NULL)
     return;
 
-  clipboardClient->requestClipboard();
+  clipboardClient->requestClipboardOrClose();
 }
 
 void VNCServerST::announceClipboard(bool available)
@@ -353,7 +353,7 @@ void VNCServerST::announceClipboard(bool available)
 
   for (ci = clients.begin(); ci != clients.end(); ci = ci_next) {
     ci_next = ci; ci_next++;
-    (*ci)->announceClipboard(available);
+    (*ci)->announceClipboardOrClose(available);
   }
 }
 
@@ -367,7 +367,7 @@ void VNCServerST::sendClipboardData(const char* data)
   for (ci = clipboardRequestors.begin();
        ci != clipboardRequestors.end(); ci = ci_next) {
     ci_next = ci; ci_next++;
-    (*ci)->sendClipboardData(data);
+    (*ci)->sendClipboardDataOrClose(data);
   }
 
   clipboardRequestors.clear();
@@ -599,7 +599,7 @@ SConnection* VNCServerST::getConnection(network::Socket* sock) {
   std::list<VNCSConnectionST*>::iterator ci;
   for (ci = clients.begin(); ci != clients.end(); ci++) {
     if ((*ci)->getSock() == sock)
-      return *ci;
+      return (SConnection*)*ci;
   }
   return 0;
 }

@@ -24,10 +24,10 @@ include(CheckCSourceRuns)
 include(CMakeMacroLibtoolFile)
 
 project(tigervnc)
-set(VERSION 1.10.80)
+set(VERSION 1.11.80)
 
 # The RC version must always be four comma-separated numbers
-set(RCVERSION 1,10,80,0)
+set(RCVERSION 1,11,80,0)
 
 # Installation paths
 include(GNUInstallDirs)
@@ -136,6 +136,9 @@ endif()
 
 # Check for zlib
 find_package(ZLIB REQUIRED)
+
+# Check for pixman
+find_package(Pixman REQUIRED)
 
 # Check for gettext
 option(ENABLE_NLS "Enable translation of program messages" ON)
@@ -304,7 +307,7 @@ endif()
 add_subdirectory(tests)
 
 
-include(cmake/BuildPackages.cmake)
+add_subdirectory(release)
 
 # uninstall
 configure_file("${CMAKE_SOURCE_DIR}/cmake/cmake_uninstall.cmake.in"

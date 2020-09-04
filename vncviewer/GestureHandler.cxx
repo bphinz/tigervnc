@@ -54,6 +54,9 @@ const unsigned GH_TAP_TIMEOUT = 1000;
 // Timeout when waiting for longpress (ms)
 const unsigned GH_LONGPRESS_TIMEOUT = 1000;
 
+// Timeout when waiting to decide between PINCH and TWODRAG (ms)
+const unsigned GH_TWOTOUCH_TIMEOUT = 50;
+
 GestureHandler::GestureHandler() :
   state(GH_INITSTATE), waitingRelease(false),
   longpressTimer(this), twoTouchTimer(this)
@@ -189,10 +192,10 @@ void GestureHandler::handleTouchUpdate(int id, double x, double y)
         if (twoTouchTimer.isStarted())
           twoTouchTimer.stop();
 
-      } else if(!twoTouchTimer.isStarted()) {
+      } else if (!twoTouchTimer.isStarted()) {
         // We can't determine the gesture right now, let's
         // wait and see if more events are on their way
-        twoTouchTimer.start(50);
+        twoTouchTimer.start(GH_TWOTOUCH_TIMEOUT);
       }
     }
 
@@ -210,7 +213,7 @@ void GestureHandler::handleTouchEnd(int id)
   std::map<int, GHTouch>::const_iterator iter;
 
   // Check if this is an ignored touch
-  if(ignored.count(id)) {
+  if (ignored.count(id)) {
       ignored.erase(id);
       if (ignored.empty() && tracked.empty()) {
         state = GH_INITSTATE;
@@ -226,7 +229,7 @@ void GestureHandler::handleTouchEnd(int id)
     state = GH_NOGESTURE;
   }
 
-  // Some gesture don't trigger until a touch is released
+  // Some gestures don't trigger until a touch is released
   if (!hasDetectedGesture()) {
     // Can't be a gesture that relies on movement
     state &= ~(GH_DRAG | GH_TWODRAG | GH_PINCH);
@@ -253,7 +256,7 @@ void GestureHandler::handleTouchEnd(int id)
 
   // Waiting for all touches to release? (i.e. some tap)
   if (waitingRelease) {
-    // Were all touches release roughly the same time?
+    // Were all touches released at roughly the same time?
     if (rfb::msSince(&releaseStart) > GH_MULTITOUCH_TIMEOUT)
       state = GH_NOGESTURE;
 

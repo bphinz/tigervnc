@@ -493,7 +493,7 @@ void testLongPressDrag()
   printf("OK\n");
 }
 
-void testTwoDragFastHoriz()
+void testTwoDragFastDistinctHoriz()
 {
   TestClass test;
 
@@ -547,7 +547,7 @@ void testTwoDragFastHoriz()
   printf("OK\n");
 }
 
-void testTwoDragFastVert()
+void testTwoDragFastDistinctVert()
 {
   TestClass test;
 
@@ -600,7 +600,7 @@ void testTwoDragFastVert()
   printf("OK\n");
 }
 
-void testTwoDragFastDiag()
+void testTwoDragFastDistinctDiag()
 {
   TestClass test;
 
@@ -653,7 +653,7 @@ void testTwoDragFastDiag()
   printf("OK\n");
 }
 
-void testTwoDragEndBeforeTimeout()
+void testTwoDragFastAlmost()
 {
   TestClass test;
 
@@ -676,7 +676,7 @@ void testTwoDragEndBeforeTimeout()
   printf("OK\n");
 }
 
-void testTwoDragStartHorizFromTimeout()
+void testTwoDragSlowHoriz()
 {
   TestClass test;
 
@@ -710,7 +710,7 @@ void testTwoDragStartHorizFromTimeout()
   printf("OK\n");
 }
 
-void testTwoDragStartVertFromTimeout()
+void testTwoDragSlowVert()
 {
   TestClass test;
 
@@ -744,7 +744,7 @@ void testTwoDragStartVertFromTimeout()
   printf("OK\n");
 }
 
-void testTwoDragStartDiagFromTimeout()
+void testTwoDragSlowDiag()
 {
   TestClass test;
 
@@ -792,14 +792,13 @@ void testTwoDragTooSlow()
   test.handleTouchBegin(2, 30.0, 30.0);
   test.handleTouchUpdate(2, 50.0, 30.0);
   test.handleTouchUpdate(1, 80.0, 30.0);
-  test.handleTouchEnd(1);
 
   ASSERT_EQ(test.events.size(), 0);
 
   printf("OK\n");
 }
 
-void testPinchFastIn()
+void testPinchFastDistinctIn()
 {
   TestClass test;
 
@@ -849,7 +848,7 @@ void testPinchFastIn()
   printf("OK\n");
 }
 
-void testPinchFastOut()
+void testPinchFastDistinctOut()
 {
   TestClass test;
 
@@ -861,7 +860,7 @@ void testPinchFastOut()
   ASSERT_EQ(test.events.size(), 0);
 
   test.handleTouchUpdate(1, 130.0, 70.0);
-  test.handleTouchUpdate(2, 20.0, 200.0);
+  test.handleTouchUpdate(2, 0.0, 200.0);
 
   ASSERT_EQ(test.events.size(), 0);
 
@@ -880,7 +879,7 @@ void testPinchFastOut()
   ASSERT_EQ(test.events[1].gesture, GesturePinch);
   ASSERT_EQ(test.events[1].eventX, 105.0);
   ASSERT_EQ(test.events[1].eventY, 100.0);
-  ASSERT_EQ(test.events[1].magnitudeX, 160.0);
+  ASSERT_EQ(test.events[1].magnitudeX, 180.0);
   ASSERT_EQ(test.events[1].magnitudeY, 180.0);
 
   test.events.clear();
@@ -893,13 +892,13 @@ void testPinchFastOut()
   ASSERT_EQ(test.events[0].gesture, GesturePinch);
   ASSERT_EQ(test.events[0].eventX, 105.0);
   ASSERT_EQ(test.events[0].eventY, 100.0);
-  ASSERT_EQ(test.events[0].magnitudeX, 160.0);
+  ASSERT_EQ(test.events[0].magnitudeX, 180.0);
   ASSERT_EQ(test.events[0].magnitudeY, 180.0);
 
   printf("OK\n");
 }
 
-void testPinchEndBeforeTimeout()
+void testPinchFastAlmost()
 {
   TestClass test;
 
@@ -921,7 +920,7 @@ void testPinchEndBeforeTimeout()
   printf("OK\n");
 }
 
-void testPinchStartInFromTimeout()
+void testPinchSlowIn()
 {
   TestClass test;
 
@@ -959,7 +958,7 @@ void testPinchStartInFromTimeout()
   printf("OK\n");
 }
 
-void testPinchStartOutFromTimeout()
+void testPinchSlowOut()
 {
   TestClass test;
 
@@ -1203,23 +1202,23 @@ void testLongPress()
 
 void testTwoDrag()
 {
-  testTwoDragFastHoriz();
-  testTwoDragFastVert();
-  testTwoDragFastDiag();
-  testTwoDragEndBeforeTimeout();
-  testTwoDragStartHorizFromTimeout();
-  testTwoDragStartVertFromTimeout();
-  testTwoDragStartDiagFromTimeout();
+  testTwoDragFastDistinctHoriz();
+  testTwoDragFastDistinctVert();
+  testTwoDragFastDistinctDiag();
+  testTwoDragFastAlmost();
+  testTwoDragSlowHoriz();
+  testTwoDragSlowVert();
+  testTwoDragSlowDiag();
   testTwoDragTooSlow();
 }
 
 void testPinch()
 {
-  testPinchFastIn();
-  testPinchFastOut();
-  testPinchEndBeforeTimeout();
-  testPinchStartInFromTimeout();
-  testPinchStartOutFromTimeout();
+  testPinchFastDistinctIn();
+  testPinchFastDistinctOut();
+  testPinchFastAlmost();
+  testPinchSlowIn();
+  testPinchSlowOut();
   testPinchTooSlow();
 }
 
