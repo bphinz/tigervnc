@@ -99,7 +99,7 @@ begin_daemon(void)
         return -1;
     }
 
-    if (pid == 0)
+    if (pid != 0)
         _exit(0);
 
     /* Send all stdio to /dev/null */
@@ -116,9 +116,6 @@ begin_daemon(void)
     }
     if (devnull > 2)
         close(devnull);
-
-    /* Full control of access bits */
-    umask(0);
 
     /* A safe working directory */
     if (chdir("/") < 0) {
@@ -546,7 +543,7 @@ main(int argc, char **argv)
     }
 
     snprintf(pid_file, sizeof(pid_file),
-             "/var/run/vncsession-%s.pid", display);
+             "/run/vncsession-%s.pid", display);
     f = fopen(pid_file, "w");
     if (f == NULL) {
         syslog(LOG_ERR, "Failure creating pid file \"%s\": %s",
