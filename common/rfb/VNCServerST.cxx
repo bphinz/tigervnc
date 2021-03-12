@@ -137,7 +137,9 @@ void VNCServerST::addSocket(network::Socket* sock, bool outgoing)
       // Shortest possible way to tell a client it is not welcome
       os.writeBytes("RFB 003.003\n", 12);
       os.writeU32(0);
-      os.writeString("Too many security failures");
+      const char* reason = "Too many security failures";
+      os.writeU32(strlen(reason));
+      os.writeBytes(reason, strlen(reason));
       os.flush();
     } catch (rdr::Exception&) {
     }
@@ -169,16 +171,16 @@ void VNCServerST::removeSocket(network::Socket* sock) {
       if (pointerClient == *ci)
         pointerClient = NULL;
       if (clipboardClient == *ci)
-        clipboardClient = NULL;
+        handleClipboardAnnounce(*ci, false);
       clipboardRequestors.remove(*ci);
+
+      CharArray name(strDup((*ci)->getPeerEndpoint()));
 
       // - Delete the per-Socket resources
       delete *ci;
 
       clients.remove(*ci);
 
-      CharArray name;
-      name.buf = sock->getPeerEndpoint();
       connectionsLog.status("closed: %s", name.buf);
 
       // - Check that the desktop object is still required
@@ -427,14 +429,17 @@ void VNCServerST::setCursor(int width, int height, const Point& newHotspot,
   }
 }
 
-void VNCServerST::setCursorPos(const Point& pos)
+void VNCServerST::setCursorPos(const Point& pos, bool warped)
 {
   if (!cursorPos.equals(pos)) {
     cursorPos = pos;
     renderedCursorInvalid = true;
     std::list<VNCSConnectionST*>::iterator ci;
-    for (ci = clients.begin(); ci != clients.end(); ci++)
+    for (ci = clients.begin(); ci != clients.end(); ci++) {
       (*ci)->renderedCursorChange();
+      if (warped)
+        (*ci)->cursorPositionChange();
+    }
   }
 }
 
@@ -515,8 +520,10 @@ void VNCServerST::handleClipboardAnnounce(VNCSConnectionST* client,
 void VNCServerST::handleClipboardData(VNCSConnectionST* client,
                                       const char* data)
 {
-  if (client != clipboardClient)
+  if (client != clipboardClient) {
+    slog.debug("Ignoring unexpected clipboard data");
     return;
+  }
   desktop->handleClipboardData(data);
 }
 

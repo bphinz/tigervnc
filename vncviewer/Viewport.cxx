@@ -291,12 +291,8 @@ void Viewport::handleClipboardAnnounce(bool available)
   if (!acceptClipboard)
     return;
 
-  if (available)
-    vlog.debug("Got notification of new clipboard on server");
-  else
-    vlog.debug("Clipboard is no longer available on server");
-
   if (!available) {
+    vlog.debug("Clipboard is no longer available on server");
     pendingServerClipboard = false;
     return;
   }
@@ -304,10 +300,12 @@ void Viewport::handleClipboardAnnounce(bool available)
   pendingClientClipboard = false;
 
   if (!hasFocus()) {
+    vlog.debug("Got notification of new clipboard on server whilst not focused, will request data later");
     pendingServerClipboard = true;
     return;
   }
 
+  vlog.debug("Got notification of new clipboard on server, requesting data");
   cc->requestClipboard();
 }
 
@@ -574,7 +572,8 @@ int Viewport::handle(int event)
       cc->sendClipboardData(filtered);
     } catch (rdr::Exception& e) {
       vlog.error("%s", e.str());
-      exit_vncviewer(e.str());
+      exit_vncviewer(_("An unexpected error occurred when communicating "
+                       "with the server:\n\n%s"), e.str());
     }
 
     strFree(filtered);
@@ -670,7 +669,8 @@ void Viewport::sendPointerEvent(const rfb::Point& pos, int buttonMask)
       cc->writer()->writePointerEvent(pos, buttonMask);
     } catch (rdr::Exception& e) {
       vlog.error("%s", e.str());
-      exit_vncviewer(e.str());
+      exit_vncviewer(_("An unexpected error occurred when communicating "
+                       "with the server:\n\n%s"), e.str());
     }
   } else {
     if (!Fl::has_timeout(handlePointerTimeout, this))
@@ -759,17 +759,20 @@ void Viewport::handleClipboardChange(int source, void *data)
   self->pendingServerClipboard = false;
 
   if (!self->hasFocus()) {
+    vlog.debug("Local clipboard changed whilst not focused, will notify server later");
     self->pendingClientClipboard = true;
     // Clear any older client clipboard from the server
     self->cc->announceClipboard(false);
     return;
   }
 
+  vlog.debug("Local clipboard changed, notifying server");
   try {
     self->cc->announceClipboard(true);
   } catch (rdr::Exception& e) {
     vlog.error("%s", e.str());
-    exit_vncviewer(e.str());
+    exit_vncviewer(_("An unexpected error occurred when communicating "
+                     "with the server:\n\n%s"), e.str());
   }
 }
 
@@ -777,19 +780,23 @@ void Viewport::handleClipboardChange(int source, void *data)
 void Viewport::flushPendingClipboard()
 {
   if (pendingServerClipboard) {
+    vlog.debug("Focus regained after remote clipboard change, requesting data");
     try {
       cc->requestClipboard();
     } catch (rdr::Exception& e) {
       vlog.error("%s", e.str());
-      exit_vncviewer(e.str());
+      exit_vncviewer(_("An unexpected error occurred when communicating "
+                       "with the server:\n\n%s"), e.str());
     }
   }
   if (pendingClientClipboard) {
+    vlog.debug("Focus regained after local clipboard change, notifying server");
     try {
       cc->announceClipboard(true);
     } catch (rdr::Exception& e) {
       vlog.error("%s", e.str());
-      exit_vncviewer(e.str());
+      exit_vncviewer(_("An unexpected error occurred when communicating "
+                       "with the server:\n\n%s"), e.str());
     }
   }
 
@@ -815,7 +822,8 @@ void Viewport::handlePointerTimeout(void *data)
                                           self->lastButtonMask);
   } catch (rdr::Exception& e) {
     vlog.error("%s", e.str());
-    exit_vncviewer(e.str());
+    exit_vncviewer(_("An unexpected error occurred when communicating "
+                     "with the server:\n\n%s"), e.str());
   }
 }
 
@@ -884,7 +892,8 @@ void Viewport::handleKeyPress(int keyCode, rdr::U32 keySym)
       cc->writer()->writeKeyEvent(keySym, keyCode, true);
   } catch (rdr::Exception& e) {
     vlog.error("%s", e.str());
-    exit_vncviewer(e.str());
+    exit_vncviewer(_("An unexpected error occurred when communicating "
+                     "with the server:\n\n%s"), e.str());
   }
 }
 
@@ -918,7 +927,8 @@ void Viewport::handleKeyRelease(int keyCode)
       cc->writer()->writeKeyEvent(iter->second, keyCode, false);
   } catch (rdr::Exception& e) {
     vlog.error("%s", e.str());
-    exit_vncviewer(e.str());
+    exit_vncviewer(_("An unexpected error occurred when communicating "
+                     "with the server:\n\n%s"), e.str());
   }
 
   downKeySym.erase(iter);

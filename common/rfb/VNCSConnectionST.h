@@ -93,6 +93,11 @@ namespace rfb {
     // cursor.
     void renderedCursorChange();
 
+    // cursorPositionChange() is called whenever the cursor has changed position by
+    // the server.  If the client supports being informed about these changes then
+    // it will arrange for the new cursor position to be sent to the client.
+    void cursorPositionChange();
+
     // needRenderedCursor() returns true if this client needs the server-side
     // rendered cursor.  This may be because it does not support local cursor
     // or because the current cursor position has not been set by this client.
@@ -107,13 +112,14 @@ namespace rfb {
       updates.add_copied(dest, delta);
     }
 
+    const char* getPeerEndpoint() const {return peerEndpoint.buf;}
+
   private:
     // SConnection callbacks
 
     // These methods are invoked as callbacks from processMsg()
 
     virtual void authSuccess();
-    virtual void authFailure(const char* reason);
     virtual void queryConnection(const char* userName);
     virtual void clientInit(bool shared);
     virtual void setPixelFormat(const PixelFormat& pf);
@@ -154,9 +160,9 @@ namespace rfb {
 
     void screenLayoutChange(rdr::U16 reason);
     void setCursor();
+    void setCursorPos();
     void setDesktopName(const char *name);
     void setLEDState(unsigned int state);
-    void setSocketTimeouts();
 
   private:
     network::Socket* sock;
@@ -190,9 +196,6 @@ namespace rfb {
     time_t pointerEventTime;
     Point pointerEventPos;
     bool clientHasCursor;
-
-    Timer authFailureTimer;
-    CharArray authFailureMsg;
 
     CharArray closeReason;
   };

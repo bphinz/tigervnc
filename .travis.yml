@@ -2,9 +2,11 @@ dist: xenial
 language: minimal
 
 env:
+  - DOCKER=centos8
   - DOCKER=centos7
   - DOCKER=xenial
   - DOCKER=bionic
+  - DOCKER=focal
 
 matrix:
   include:
