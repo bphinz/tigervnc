@@ -17,6 +17,8 @@ set(VNCVIEWER_SOURCES
   parameters.cxx
   keysym2ucs.c
   touch.cxx
+  MonitorArrangement.cxx
+  MonitorIndicesParameter.cxx
   vncviewer.cxx)
 
 if(WIN32)
@@ -51,7 +53,7 @@ else()
   add_executable(vncviewer ${VNCVIEWER_SOURCES})
 endif()
 
-target_link_libraries(vncviewer rfb network rdr os ${FLTK_LIBRARIES} ${GETTEXT_LIBRARIES})
+target_link_libraries(vncviewer rfb network rdr os ${FLTK_LIBRARIES} ${GETTEXT_LIBRARIES} ${H264_LIBRARIES})
 
 if(WIN32)
   target_link_libraries(vncviewer msimg32)
@@ -61,6 +63,11 @@ elseif(APPLE)
   target_link_libraries(vncviewer "-framework IOKit")
 else()
   target_link_libraries(vncviewer ${X11_Xi_LIB})
+
+  if(X11_Xrandr_LIB)
+    add_definitions(-DHAVE_XRANDR)
+    target_link_libraries(vncviewer ${X11_Xrandr_LIB})
+  endif()
 endif()
 
 install(TARGETS vncviewer DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
