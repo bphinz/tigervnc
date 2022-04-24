@@ -238,10 +238,10 @@ void CConn::socketEvent(FL_SOCKET fd, void *data)
   cc = (CConn*)data;
 
   // I don't think processMsg() is recursion safe, so add this check
-  if (recursing)
-    return;
+  assert(!recursing);
 
   recursing = true;
+  Fl::remove_fd(fd);
 
   try {
     // We might have been called to flush unwritten socket data
@@ -255,12 +255,12 @@ void CConn::socketEvent(FL_SOCKET fd, void *data)
 
       // Make sure that the FLTK handling and the timers gets some CPU
       // time in case of back to back messages
-       Fl::check();
-       Timer::checkTimeouts();
+      Fl::check();
+      Timer::checkTimeouts();
 
-       // Also check if we need to stop reading and terminate
-       if (should_disconnect())
-         break;
+      // Also check if we need to stop reading and terminate
+      if (should_disconnect())
+        break;
     }
 
     cc->sock->outStream().cork(false);
@@ -287,6 +287,7 @@ void CConn::socketEvent(FL_SOCKET fd, void *data)
   Fl::add_fd(fd, when, socketEvent, data);
 
   recursing = false;
+  Fl::add_fd(fd, FL_READ | FL_EXCEPT, socketEvent, data);
 }
 
 ////////////////////// CConnection callback methods //////////////////////
