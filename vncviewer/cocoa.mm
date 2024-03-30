@@ -107,6 +107,11 @@ int cocoa_capture_displays(Fl_Window *win)
 
   [nsw setLevel:CGShieldingWindowLevel()];
 
+  // We're not getting put in front of the shielding window in many
+  // cases on macOS 13, despite setLevel: being documented as also
+  // pushing the window to the front. So let's explicitly move it.
+  [nsw orderFront:nsw];
+
   return 0;
 }
 
@@ -175,6 +180,25 @@ void cocoa_win_zoom(Fl_Window *win)
   [nsw zoom:nsw];
 }
 
+int cocoa_is_keyboard_sync(const void *event)
+{
+  const NSEvent* nsevent = (const NSEvent*)event;
+
+  assert(event);
+
+  // If we get a NSFlagsChanged event with key code 0 then this isn't
+  // an actual keyboard event but rather the system trying to sync up
+  // modifier state after it has stolen input for some reason (e.g.
+  // Cmd+Tab)
+
+  if ([nsevent type] != NSFlagsChanged)
+    return 0;
+  if ([nsevent keyCode] != 0)
+    return 0;
+
+  return 1;
+}
+
 int cocoa_is_keyboard_event(const void *event)
 {
   NSEvent *nsevent;
@@ -185,6 +209,8 @@ int cocoa_is_keyboard_event(const void *event)
   case NSKeyDown:
   case NSKeyUp:
   case NSFlagsChanged:
+    if (cocoa_is_keyboard_sync(event))
+      return 0;
     return 1;
   default:
     return 0;
@@ -253,10 +279,21 @@ int cocoa_is_key_press(const void *event)
 int cocoa_event_keycode(const void *event)
 {
   NSEvent *nsevent;
+  int keycode;
 
   nsevent = (NSEvent*)event;
 
-  return [nsevent keyCode];
+  keycode = [nsevent keyCode];
+
+  // macOS swaps these two keys for unknown reasons for ISO layouts
+  if (KBGetLayoutType(LMGetKbdType()) == kKeyboardISO) {
+    if (keycode == kVK_ANSI_Grave)
+      return kVK_ISO_Section;
+    if (keycode == kVK_ISO_Section)
+      return kVK_ANSI_Grave;
+  }
+
+  return keycode;
 }
 
 static NSString *key_translate(UInt16 keyCode, UInt32 modifierFlags)

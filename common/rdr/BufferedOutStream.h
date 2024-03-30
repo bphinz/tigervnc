@@ -54,16 +54,18 @@ namespace rdr {
   private:
     size_t bufSize;
     size_t offset;
-    U8* start;
+    uint8_t* start;
 
     struct timeval lastSizeCheck;
     size_t peakUsage;
 
-  protected:
-    U8* sentUpTo;
+    bool emulateCork;
 
   protected:
-    BufferedOutStream();
+    uint8_t* sentUpTo;
+
+  protected:
+    BufferedOutStream(bool emulateCork=true);
   };
 
 }

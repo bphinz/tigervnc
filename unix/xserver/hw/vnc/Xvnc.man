@@ -125,7 +125,7 @@ clipboard selection. Default is on.
 .
 .TP
 .B \-AcceptPointerEvents
-Accept pointer press and release events from clients. Default is on.
+Accept pointer movement and button events from clients. Default is on.
 .
 .TP
 .B \-AcceptKeyEvents
@@ -171,12 +171,6 @@ be either \fB0\fP (off), \fB1\fP (always) or \fB2\fP (auto). Default is
 \fB2\fP.
 .
 .TP
-.B \-ZlibLevel \fIlevel\fP
-Zlib compression level for ZRLE encoding (it does not affect Tight encoding).
-Acceptable values are between 0 and 9.  Default is to use the standard
-compression level provided by the \fBzlib\fP(3) compression library.
-.
-.TP
 .B \-ImprovedHextile
 Use improved compression algorithm for Hextile encoding which achieves better
 compression ratios by the cost of using slightly more CPU time.  Default is
@@ -186,8 +180,9 @@ on.
 .B \-SecurityTypes \fIsec-types\fP
 Specify which security scheme to use for incoming connections.  Valid values
 are a comma separated list of \fBNone\fP, \fBVncAuth\fP, \fBPlain\fP,
-\fBTLSNone\fP, \fBTLSVnc\fP, \fBTLSPlain\fP, \fBX509None\fP, \fBX509Vnc\fP
-and \fBX509Plain\fP. Default is \fBVncAuth,TLSVnc\fP.
+\fBTLSNone\fP, \fBTLSVnc\fP, \fBTLSPlain\fP, \fBX509None\fP, \fBX509Vnc\fP,
+\fBX509Plain\fP, \fBRA2\fP, \fBRA2ne\fP, \fBRA2_256\fP and \fBRA2ne_256\fP.
+Default is \fBTLSVnc,VncAuth\fP.
 .
 .TP
 .B \-Password \fIpassword\fP
@@ -199,8 +194,8 @@ parameter instead.
 .B \-PlainUsers \fIuser-list\fP
 A comma separated list of user names that are allowed to authenticate via
 any of the "Plain" security types (Plain, TLSPlain, etc.). Specify \fB*\fP
-to allow any user to authenticate using this security type. Default is to
-deny all users.
+to allow any user to authenticate using this security type. Specify \fB%u\fP
+to allow the user of the server process. Default is to deny all users.
 .
 .TP
 .B \-pam_service \fIname\fP, \-PAMService \fIname\fP
@@ -223,6 +218,15 @@ GnuTLS priority string that controls the TLS session’s handshake algorithms.
 See the GnuTLS manual for possible values. For GnuTLS < 3.6.3 the default
 value will be \fBNORMAL\fP to use upstream default. For newer versions
 of GnuTLS system-wide crypto policy will be used.
+.
+.TP
+.B \-RSAKey \fIpath\fP
+Path to the RSA key for the RSA-AES security types (\fBRA2\fP, \fBRA2ne\fP,
+\fBRA2_256\fP and \fBRA2ne_256\fP) in PEM format.
+.
+.TP
+.B \-RequireUsername
+Require username for the RSA-AES security types. Default is off.
 .
 .TP
 .B \-UseBlacklist

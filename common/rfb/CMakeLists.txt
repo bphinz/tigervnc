@@ -1,6 +1,4 @@
-include_directories(${CMAKE_SOURCE_DIR}/common ${JPEG_INCLUDE_DIR} ${PIXMAN_INCLUDE_DIR})
-
-set(RFB_SOURCES
+add_library(rfb STATIC
   Blacklist.cxx
   Congestion.cxx
   CConnection.cxx
@@ -26,11 +24,11 @@ set(RFB_SOURCES
   JpegCompressor.cxx
   JpegDecompressor.cxx
   KeyRemapper.cxx
+  KeysymStr.c
   LogWriter.cxx
   Logger.cxx
   Logger_file.cxx
   Logger_stdio.cxx
-  Password.cxx
   PixelBuffer.cxx
   PixelFormat.cxx
   RREEncoder.cxx
@@ -62,49 +60,58 @@ set(RFB_SOURCES
   ZRLEEncoder.cxx
   ZRLEDecoder.cxx
   encodings.cxx
+  obfuscate.cxx
   util.cxx)
 
+target_include_directories(rfb PUBLIC ${CMAKE_SOURCE_DIR}/common)
+target_include_directories(rfb SYSTEM PUBLIC ${JPEG_INCLUDE_DIR})
+target_include_directories(rfb SYSTEM PUBLIC ${PIXMAN_INCLUDE_DIRS})
+target_link_libraries(rfb os rdr network)
+target_link_libraries(rfb ${JPEG_LIBRARIES} ${PIXMAN_LIBRARIES})
+target_link_directories(rfb PUBLIC ${PIXMAN_LIBRARY_DIRS})
+
 if(ENABLE_H264 AND NOT H264_LIBS STREQUAL "NONE")
-  set(RFB_SOURCES ${RFB_SOURCES} H264Decoder.cxx H264DecoderContext.cxx)
+  target_sources(rfb PRIVATE H264Decoder.cxx H264DecoderContext.cxx)
   if(H264_LIBS STREQUAL "LIBAV")
-    set(RFB_SOURCES ${RFB_SOURCES} H264LibavDecoderContext.cxx)
+    target_sources(rfb PRIVATE H264LibavDecoderContext.cxx)
   elseif(H264_LIBS STREQUAL "WIN")
-    set(RFB_SOURCES ${RFB_SOURCES} H264WinDecoderContext.cxx)
+    target_sources(rfb PRIVATE H264WinDecoderContext.cxx)
   endif()
+  target_include_directories(rfb SYSTEM PUBLIC ${H264_INCLUDE_DIRS})
+  target_link_libraries(rfb ${H264_LIBRARIES})
+  target_link_directories(rfb PUBLIC ${H264_LIBRARY_DIRS})
 endif()
 
 if(UNIX)
-  set(RFB_SOURCES ${RFB_SOURCES} Logger_syslog.cxx)
+  target_sources(rfb PRIVATE Logger_syslog.cxx)
 endif()
 
 if(WIN32)
-  include_directories(${CMAKE_SOURCE_DIR}/win)
-  set(RFB_SOURCES ${RFB_SOURCES} WinPasswdValidator.cxx)
+  target_include_directories(rfb PUBLIC ${CMAKE_SOURCE_DIR}/win)
+  target_sources(rfb PRIVATE WinPasswdValidator.cxx)
 endif(WIN32)
 
-set(RFB_LIBRARIES ${JPEG_LIBRARIES} ${PIXMAN_LIBRARY} os rdr)
-
 if(UNIX AND NOT APPLE)
-  set(RFB_SOURCES ${RFB_SOURCES} UnixPasswordValidator.cxx
-    UnixPasswordValidator.h pam.c pam.h)
-  set(RFB_LIBRARIES ${RFB_LIBRARIES} ${PAM_LIBS})
+  target_sources(rfb PRIVATE UnixPasswordValidator.cxx pam.c)
+  target_link_libraries(rfb ${PAM_LIBS})
 endif()
 
 if(GNUTLS_FOUND)
-  set(RFB_SOURCES
-    ${RFB_SOURCES}
-    CSecurityTLS.cxx
-    SSecurityTLS.cxx
-  )
-  set(RFB_LIBRARIES
-    ${RFB_LIBRARIES}
-    ${GNUTLS_LIBRARIES}
-  )
+  target_sources(rfb PRIVATE CSecurityTLS.cxx SSecurityTLS.cxx)
+  target_include_directories(rfb SYSTEM PUBLIC ${GNUTLS_INCLUDE_DIR})
+  target_link_libraries(rfb ${GNUTLS_LIBRARIES})
 endif()
 
-add_library(rfb STATIC ${RFB_SOURCES})
-
-target_link_libraries(rfb ${RFB_LIBRARIES})
+if (NETTLE_FOUND)
+  target_sources(rfb PRIVATE CSecurityDH.cxx CSecurityMSLogonII.cxx
+                 CSecurityRSAAES.cxx SSecurityRSAAES.cxx)
+  target_include_directories(rfb SYSTEM PUBLIC ${NETTLE_INCLUDE_DIRS}
+                             ${GMP_INCLUDE_DIRS})
+  target_link_libraries(rfb ${HOGWEED_LIBRARIES}
+                        ${NETTLE_LIBRARIES} ${GMP_LIBRARIES})
+  target_link_directories(rfb PUBLIC ${HOGWEED_LIBRARY_DIRS}
+                          ${NETTLE_LIBRARY_DIRS} ${GMP_LIBRARY_DIRS})
+endif()
 
 if(UNIX)
   libtool_create_control_file(rfb)

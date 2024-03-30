@@ -83,17 +83,17 @@ RandomStream::~RandomStream() {
 #endif
 }
 
-bool RandomStream::fillBuffer(size_t maxSize) {
+bool RandomStream::fillBuffer() {
 #ifdef RFB_HAVE_WINCRYPT
   if (provider) {
-    if (!CryptGenRandom(provider, maxSize, (U8*)end))
+    if (!CryptGenRandom(provider, availSpace(), (uint8_t*)end))
       throw rdr::SystemException("unable to CryptGenRandom", GetLastError());
-    end += maxSize;
+    end += availSpace();
   } else {
 #else
 #ifndef WIN32
   if (fp) {
-    size_t n = fread((U8*)end, 1, maxSize, fp);
+    size_t n = fread((uint8_t*)end, 1, availSpace(), fp);
     if (n <= 0)
       throw rdr::SystemException("reading /dev/urandom or /dev/random failed",
                                  errno);
@@ -103,8 +103,8 @@ bool RandomStream::fillBuffer(size_t maxSize) {
   {
 #endif
 #endif
-    for (size_t i=0; i<maxSize; i++)
-      *(U8*)end++ = (int) (256.0*rand()/(RAND_MAX+1.0));
+    for (size_t i=availSpace(); i>0; i--)
+      *(uint8_t*)end++ = (int) (256.0*rand()/(RAND_MAX+1.0));
   }
 
   return true;
