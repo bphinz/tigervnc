@@ -1,14 +1,13 @@
-include_directories(${CMAKE_SOURCE_DIR}/common)
-
-set(NETWORK_SOURCES
+add_library(network STATIC
   Socket.cxx
   TcpSocket.cxx)
 
 if(NOT WIN32)
-  set(NETWORK_SOURCES ${NETWORK_SOURCES} UnixSocket.cxx)
+  target_sources(network PRIVATE UnixSocket.cxx)
 endif()
 
-add_library(network STATIC ${NETWORK_SOURCES})
+target_include_directories(network PUBLIC ${CMAKE_SOURCE_DIR}/common)
+target_link_libraries(network os rdr rfb)
 
 if(WIN32)
 	target_link_libraries(network ws2_32)

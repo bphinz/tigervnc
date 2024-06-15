@@ -32,10 +32,14 @@ sed -i "s/@VERSION@/${VERSION}/" ${CURDIR}/rpmbuild/SPECS/tigervnc.spec
 ## Start the build
 
 docker run --volume ${CURDIR}/rpmbuild:/home/rpm/rpmbuild --interactive --rm tigervnc/${DOCKER} \
-	bash -c "
-	sudo yum install -y epel-release &&
-	sudo yum-builddep -y ~/rpmbuild/SPECS/tigervnc.spec &&
-        sudo chown 0.0 ~/rpmbuild/SOURCES/* &&
-        sudo chown 0.0 ~/rpmbuild/SPECS/* &&
+	bash -e -x -c "
+	sudo yum install -y xorg-x11-server-devel
+	sudo yum-builddep -y ~/rpmbuild/SPECS/tigervnc.spec
+	sudo chown 0.0 ~/rpmbuild/SOURCES/*
+	sudo chown 0.0 ~/rpmbuild/SPECS/*
 	rpmbuild -ba ~/rpmbuild/SPECS/tigervnc.spec
 	"
+
+mkdir -p ${CURDIR}/result
+cp -av ${CURDIR}/rpmbuild/RPMS ${CURDIR}/result
+cp -av ${CURDIR}/rpmbuild/SRPMS ${CURDIR}/result

@@ -110,7 +110,7 @@ public:
 
   // handleEvent()
 
-  virtual void handleEvent(TXWindow* w, XEvent* ev) {
+  virtual void handleEvent(TXWindow* /*w*/, XEvent* ev) {
     if (ev->type == vncExtEventBase + VncExtQueryConnectNotify) {
        vlog.debug("query connection event");
        if (queryConnectDialog)
@@ -134,7 +134,7 @@ public:
   }
 
   // TXDeleteWindowCallback method
-  virtual void deleteWindow(TXWindow* w) {
+  virtual void deleteWindow(TXWindow* /*w*/) {
     exit(1);
   }
 
@@ -177,8 +177,8 @@ static void usage()
 {
   fprintf(stderr,"usage: %s [parameters]\n",
           programName);
-  fprintf(stderr,"       %s [parameters] -connect <host>[:<port>]\n",
-          programName);
+  fprintf(stderr,"       %s [parameters] -connect "
+          "[-view-only] <host>[:<port>]\n", programName);
   fprintf(stderr,"       %s [parameters] -disconnect\n", programName);
   fprintf(stderr,"       %s [parameters] [-set] <Xvnc-param>=<value> ...\n",
           programName);
@@ -225,29 +225,33 @@ int main(int argc, char** argv)
     break;
   }
 
-  CharArray displaynameStr(displayname.getData());
-  if (!(dpy = XOpenDisplay(displaynameStr.buf))) {
+  if (!(dpy = XOpenDisplay(displayname))) {
     fprintf(stderr,"%s: unable to open display \"%s\"\n",
-            programName, XDisplayName(displaynameStr.buf));
+            programName, XDisplayName(displayname));
     exit(1);
   }
 
   if (!XVncExtQueryExtension(dpy, &vncExtEventBase, &vncExtErrorBase)) {
     fprintf(stderr,"No VNC extension on display %s\n",
-            XDisplayName(displaynameStr.buf));
+            XDisplayName(displayname));
     exit(1);
   }
 
   if (i < argc) {
     for (; i < argc; i++) {
       if (strcmp(argv[i], "-connect") == 0) {
+        Bool viewOnly = False;
         i++;
+        if (strcmp(argv[i], "-view-only") == 0) {
+          viewOnly = True;
+          i++;
+        }
         if (i >= argc) usage();
-        if (!XVncExtConnect(dpy, argv[i])) {
+        if (!XVncExtConnect(dpy, argv[i], viewOnly)) {
           fprintf(stderr,"connecting to %s failed\n",argv[i]);
         }
       } else if (strcmp(argv[i], "-disconnect") == 0) {
-        if (!XVncExtConnect(dpy, "")) {
+        if (!XVncExtConnect(dpy, "", False)) {
           fprintf(stderr,"disconnecting all clients failed\n");
         }
       } else if (strcmp(argv[i], "-get") == 0) {

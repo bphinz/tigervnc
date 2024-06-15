@@ -37,7 +37,6 @@
 #ifdef WIN32
 #include <os/winerrno.h>
 #include <direct.h>
-#define mkdir(path, mode) _mkdir(path)
 #endif
 
 #ifdef __APPLE__
@@ -60,13 +59,13 @@
 #include <network/TcpSocket.h>
 #include <os/os.h>
 
-#include <FL/Fl.H>
-#include <FL/Fl_Widget.H>
 #include <FL/Fl_PNG_Image.H>
 #include <FL/Fl_Sys_Menu_Bar.H>
 #include <FL/fl_ask.H>
 #include <FL/x.H>
 
+#include "fltk/theme.h"
+#include "fltk/util.h"
 #include "i18n.h"
 #include "parameters.h"
 #include "CConn.h"
@@ -74,7 +73,6 @@
 #include "UserDialog.h"
 #include "touch.h"
 #include "vncviewer.h"
-#include "fltk_layout.h"
 
 #ifdef WIN32
 #include "resource.h"
@@ -85,7 +83,6 @@ static rfb::LogWriter vlog("main");
 
 using namespace network;
 using namespace rfb;
-using namespace std;
 
 char vncServerName[VNCSERVERNAMELEN] = { '\0' };
 
@@ -108,7 +105,7 @@ static const char *about_text()
              "Built on: %s\n"
              "Copyright (C) 1999-%d TigerVNC Team and many others (see README.rst)\n"
              "See https://www.tigervnc.org for information on TigerVNC."),
-           PACKAGE_VERSION, BUILD_TIMESTAMP, 2022);
+           PACKAGE_VERSION, BUILD_TIMESTAMP, 2024);
 
   return buffer;
 }
@@ -185,7 +182,7 @@ static void mainloop(const char* vncserver, network::Socket* sock)
 
     exitMainloop = false;
 
-    cc = new CConn(vncServerName, sock);
+    cc = new CConn(vncserver, sock);
 
     while (!exitMainloop) {
       int next_timer;
@@ -233,12 +230,12 @@ static void mainloop(const char* vncserver, network::Socket* sock)
 }
 
 #ifdef __APPLE__
-static void about_callback(Fl_Widget *widget, void *data)
+static void about_callback(Fl_Widget* /*widget*/, void* /*data*/)
 {
   about_vncviewer();
 }
 
-static void new_connection_cb(Fl_Widget *widget, void *data)
+static void new_connection_cb(Fl_Widget* /*widget*/, void* /*data*/)
 {
   const char *argv[2];
   pid_t pid;
@@ -323,18 +320,8 @@ static const char* getlocaledir()
 }
 static void init_fltk()
 {
-  // Basic text size (10pt @ 96 dpi => 13px)
-  FL_NORMAL_SIZE = 13;
-
-  // Select a FLTK scheme and background color that looks somewhat
-  // close to modern systems
-  Fl::scheme("gtk+");
-  Fl::background(220, 220, 220);
-
-  // macOS has a slightly brighter default background though
-#ifdef __APPLE__
-  Fl::background(240, 240, 240);
-#endif
+  // Adjust look of FLTK
+  init_theme();
 
   // Proper Gnome Shell integration requires that we set a sensible
   // WM_CLASS for the window.
@@ -355,9 +342,9 @@ static void init_fltk()
 
   Fl_Window::default_icons(lg, sm);
 #elif ! defined(__APPLE__)
-  const int icon_sizes[] = {48, 32, 24, 16};
+  const int icon_sizes[] = {128, 64, 48, 32, 24, 22, 16};
 
-  Fl_PNG_Image *icons[4];
+  Fl_PNG_Image *icons[sizeof(icon_sizes)/sizeof(icon_sizes[0])];
   int count;
 
   count = 0;
@@ -370,14 +357,8 @@ static void init_fltk()
       sprintf(icon_path, "%s/icons/hicolor/%dx%d/apps/tigervnc.png",
               CMAKE_INSTALL_FULL_DATADIR, icon_sizes[i], icon_sizes[i]);
 
-#ifndef WIN32
       struct stat st;
       if (stat(icon_path, &st) != 0)
-#else
-      struct _stat st;
-      if (_stat(icon_path, &st) != 0)
-          return(false);
-#endif
         exists = false;
       else
         exists = true;
@@ -401,20 +382,11 @@ static void init_fltk()
       delete icons[i];
 #endif
 
-  // This makes the "icon" in dialogs rounded, which fits better
-  // with the above schemes.
-  fl_message_icon()->box(FL_UP_BOX);
-
   // Turn off the annoying behaviour where popups track the mouse.
   fl_message_hotspot(false);
 
   // Avoid empty titles for popups
   fl_message_title_default(_("TigerVNC Viewer"));
-
-#ifdef WIN32
-  // Most "normal" Windows apps use this font for UI elements.
-  Fl::set_font(FL_HELVETICA, "Tahoma");
-#endif
 
   // FLTK exposes these so that we can translate them.
   fl_no     = _("No");
@@ -454,21 +426,6 @@ static void init_fltk()
                        buffer, sizeof(buffer)) < sizeof(buffer))
       menubar->insert(1, buffer, FL_COMMAND | 'n', new_connection_cb);
 #endif
-}
-
-static void mkvnchomedir()
-{
-  // Create .vnc in the user's home directory if it doesn't already exist
-  char* homeDir = NULL;
-
-  if (getvnchomedir(&homeDir) == -1) {
-    vlog.error(_("Could not obtain the home directory path"));
-  } else {
-    int result = mkdir(homeDir, 0755);
-    if (result == -1 && errno != EEXIST)
-      vlog.error(_("Could not create VNC home directory: %s"), strerror(errno));
-    delete [] homeDir;
-  }
 }
 
 static void usage(const char *programName)
@@ -757,18 +714,42 @@ int main(int argc, char** argv)
 
   migrateDeprecatedOptions();
 
-  mkvnchomedir();
+  char *confdir = strdup(os::getvncconfigdir());
+#ifndef WIN32
+  char *dotdir = strrchr(confdir, '.');
+  if (dotdir != NULL && strcmp(dotdir, ".vnc") == 0)
+    vlog.info(_("~/.vnc is deprecated, please consult 'man vncviewer' for paths to migrate to."));
+#else
+  char *vncdir = strrchr(confdir, '\\');
+  if (vncdir != NULL && strcmp(vncdir, "vnc") == 0)
+    vlog.info(_("%%APPDATA%%\\vnc is deprecated, please switch to the %%APPDATA%%\\TigerVNC location."));
+#endif
+
+  if (os::mkdir_p(os::getvncconfigdir(), 0755) == -1) {
+    if (errno != EEXIST)
+      vlog.error(_("Could not create VNC config directory: %s"), strerror(errno));
+  }
+
+  if (os::mkdir_p(os::getvncdatadir(), 0755) == -1) {
+    if (errno != EEXIST)
+      vlog.error(_("Could not create VNC data directory: %s"), strerror(errno));
+  }
+
+  if (os::mkdir_p(os::getvncstatedir(), 0755) == -1) {
+    if (errno != EEXIST)
+      vlog.error(_("Could not create VNC state directory: %s"), strerror(errno));
+  }
 
   CSecurity::upg = &dlg;
-#ifdef HAVE_GNUTLS
-  CSecurityTLS::msg = &dlg;
+#if defined(HAVE_GNUTLS) || defined(HAVE_NETTLE)
+  CSecurity::msg = &dlg;
 #endif
 
   Socket *sock = NULL;
 
 #ifndef WIN32
   /* Specifying -via and -listen together is nonsense */
-  if (listenMode && strlen(via.getValueStr()) > 0) {
+  if (listenMode && strlen(via) > 0) {
     // TRANSLATORS: "Parameters" are command line arguments, or settings
     // from a file or the Windows registry.
     vlog.error(_("Parameters -listen and -via are incompatible"));
@@ -785,6 +766,8 @@ int main(int argc, char** argv)
         port = atoi(vncServerName);
 
       createTcpListeners(&listeners, 0, port);
+      if (listeners.empty())
+        throw Exception(_("Unable to listen for incoming connections"));
 
       vlog.info(_("Listening on port %d"), port);
 
@@ -835,7 +818,7 @@ int main(int argc, char** argv)
     }
 
 #ifndef WIN32
-    if (strlen (via.getValueStr()) > 0 && mktunnel() != 0)
+    if (strlen(via) > 0 && mktunnel() != 0)
       usage(argv[0]);
 #endif
   }

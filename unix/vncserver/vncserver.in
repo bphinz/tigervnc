@@ -35,7 +35,15 @@
 # your site
 #
 
-$vncUserDir = "$ENV{HOME}/.vnc";
+$vncUserDir = rindex("$ENV{XDG_CONFIG_HOME}", "/", 0) == 0
+  ? "$ENV{XDG_CONFIG_HOME}/tigervnc"
+  : "$ENV{HOME}/.config/tigervnc";
+$vncLegacyDir = "$ENV{HOME}/.vnc";
+if (!stat($vncUserDir) && stat($vncLegacyDir)) {
+  warn "~/.vnc is deprecated, please consult 'man vncsession' for paths to migrate to.";
+  $vncUserDir = $vncLegacyDir;
+}
+
 $vncUserConfig = "$vncUserDir/config";
 
 $vncSystemConfigDir = "@CMAKE_INSTALL_FULL_SYSCONFDIR@/tigervnc";
@@ -150,8 +158,10 @@ if ($config{'password'} ||
 
 if ((!$securityTypeArgSpecified || $vncAuthEnabled) && !$passwordArgSpecified) {
     ($z,$z,$mode) = stat("$vncUserDir/passwd");
-    if (!(-e "$vncUserDir/passwd") || ($mode & 077)) {
+    if (! -e "$vncUserDir/passwd") {
         die "VNC authentication enabled, but no password file created.\n";
+    } elsif ($mode & 077) {
+        die "$vncUserDir/passwd must NOT be accessible by others. Set permission to 0600.\n";
     }
 }
 

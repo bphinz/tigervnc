@@ -24,21 +24,25 @@
 #include <stdlib.h>
 #include <list>
 
-#include <rdr/types.h>
 #include <rfb/encodings.h>
 
-#ifdef HAVE_GNUTLS
+#if defined(HAVE_GNUTLS) || defined(HAVE_NETTLE)
 #include <rfb/Security.h>
 #include <rfb/SecurityClient.h>
+#ifdef HAVE_GNUTLS
 #include <rfb/CSecurityTLS.h>
+#endif
 #endif
 
 #include "OptionsDialog.h"
-#include "fltk_layout.h"
 #include "i18n.h"
 #include "menukey.h"
 #include "parameters.h"
-#include "MonitorArrangement.h"
+
+#include "fltk/layout.h"
+#include "fltk/util.h"
+#include "fltk/Fl_Monitor_Arrangement.h"
+#include "fltk/Fl_Navigation.h"
 
 #include <FL/Fl.H>
 #include <FL/Fl_Tabs.H>
@@ -50,7 +54,6 @@
 #include <FL/Fl_Choice.H>
 
 using namespace std;
-using namespace rdr;
 using namespace rfb;
 
 std::map<OptionsCallback*, void*> OptionsDialog::callbacks;
@@ -58,19 +61,26 @@ std::map<OptionsCallback*, void*> OptionsDialog::callbacks;
 static std::set<OptionsDialog *> instances;
 
 OptionsDialog::OptionsDialog()
-  : Fl_Window(450, 460, _("VNC Viewer: Connection Options"))
+  : Fl_Window(580, 420, _("TigerVNC Options"))
 {
   int x, y;
+  Fl_Navigation *navigation;
   Fl_Button *button;
 
-  Fl_Tabs *tabs = new Fl_Tabs(OUTER_MARGIN, OUTER_MARGIN,
-                             w() - OUTER_MARGIN*2,
-                             h() - OUTER_MARGIN*2 - INNER_MARGIN - BUTTON_HEIGHT);
-
+  // Odd dimensions to get rid of extra borders
+  // FIXME: We need to retain the top border on Windows as they don't
+  //        have any separator for the caption, which looks odd
+#ifdef WIN32
+  navigation = new Fl_Navigation(-1, 0, w()+2,
+                                 h() - OUTER_MARGIN - BUTTON_HEIGHT - OUTER_MARGIN);
+#else
+  navigation = new Fl_Navigation(-1, -1, w()+2,
+                                 h()+1 - OUTER_MARGIN - BUTTON_HEIGHT - OUTER_MARGIN);
+#endif
   {
     int tx, ty, tw, th;
 
-    tabs->client_area(tx, ty, tw, th, TABS_HEIGHT);
+    navigation->client_area(tx, ty, tw, th, 150);
 
     createCompressionPage(tx, ty, tw, th);
     createSecurityPage(tx, ty, tw, th);
@@ -79,7 +89,7 @@ OptionsDialog::OptionsDialog()
     createMiscPage(tx, ty, tw, th);
   }
 
-  tabs->end();
+  navigation->end();
 
   x = w() - BUTTON_WIDTH * 2 - INNER_MARGIN - OUTER_MARGIN;
   y = h() - BUTTON_HEIGHT - OUTER_MARGIN;
@@ -203,19 +213,24 @@ void OptionsDialog::loadOptions(void)
   handleCompression(compressionCheckbox, this);
   handleJpeg(jpegCheckbox, this);
 
-#ifdef HAVE_GNUTLS
+#if defined(HAVE_GNUTLS) || defined(HAVE_NETTLE)
   /* Security */
   Security security(SecurityClient::secTypes);
 
-  list<U8> secTypes;
-  list<U8>::iterator iter;
+  list<uint8_t> secTypes;
+  list<uint8_t>::iterator iter;
 
-   list<U32> secTypesExt;
-   list<U32>::iterator iterExt;
+   list<uint32_t> secTypesExt;
+   list<uint32_t>::iterator iterExt;
 
   encNoneCheckbox->value(false);
+#ifdef HAVE_GNUTLS
   encTLSCheckbox->value(false);
   encX509Checkbox->value(false);
+#endif
+#ifdef HAVE_NETTLE
+  encRSAAESCheckbox->value(false);
+#endif
 
   authNoneCheckbox->value(false);
   authVncCheckbox->value(false);
@@ -242,6 +257,7 @@ void OptionsDialog::loadOptions(void)
       encNoneCheckbox->value(true);
       authPlainCheckbox->value(true);
       break;
+#ifdef HAVE_GNUTLS
     case secTypeTLSNone:
       encTLSCheckbox->value(true);
       authNoneCheckbox->value(true);
@@ -266,13 +282,34 @@ void OptionsDialog::loadOptions(void)
       encX509Checkbox->value(true);
       authPlainCheckbox->value(true);
       break;
+#endif
+#ifdef HAVE_NETTLE
+    case secTypeRA2:
+    case secTypeRA256:
+      encRSAAESCheckbox->value(true);
+      authVncCheckbox->value(true);
+      authPlainCheckbox->value(true);
+      break;
+    case secTypeRA2ne:
+    case secTypeRAne256:
+      authVncCheckbox->value(true);
+      /* fall through */
+    case secTypeDH:
+    case secTypeMSLogonII:
+      encNoneCheckbox->value(true);
+      authPlainCheckbox->value(true);
+      break;
+#endif
+    
     }
   }
 
+#ifdef HAVE_GNUTLS
   caInput->value(CSecurityTLS::X509CA);
   crlInput->value(CSecurityTLS::X509CRL);
 
   handleX509(encX509Checkbox, this);
+#endif
 #endif
 
   /* Input */
@@ -310,7 +347,7 @@ void OptionsDialog::loadOptions(void)
     }
   }
 
-  monitorArrangement->set(fullScreenSelectedMonitors.getParam());
+  monitorArrangement->value(fullScreenSelectedMonitors.getParam());
 
   handleFullScreenMode(selectedMonitorsButton, this);
 
@@ -352,7 +389,7 @@ void OptionsDialog::storeOptions(void)
   compressLevel.setParam(atoi(compressionInput->value()));
   qualityLevel.setParam(atoi(jpegInput->value()));
 
-#ifdef HAVE_GNUTLS
+#if defined(HAVE_GNUTLS) || defined(HAVE_NETTLE)
   /* Security */
   Security security;
 
@@ -360,12 +397,25 @@ void OptionsDialog::storeOptions(void)
   if (encNoneCheckbox->value()) {
     if (authNoneCheckbox->value())
       security.EnableSecType(secTypeNone);
-    if (authVncCheckbox->value())
+    if (authVncCheckbox->value()) {
       security.EnableSecType(secTypeVncAuth);
-    if (authPlainCheckbox->value())
+#ifdef HAVE_NETTLE
+      security.EnableSecType(secTypeRA2ne);
+      security.EnableSecType(secTypeRAne256);
+#endif
+    }
+    if (authPlainCheckbox->value()) {
       security.EnableSecType(secTypePlain);
+#ifdef HAVE_NETTLE
+      security.EnableSecType(secTypeRA2ne);
+      security.EnableSecType(secTypeRAne256);
+      security.EnableSecType(secTypeDH);
+      security.EnableSecType(secTypeMSLogonII);
+#endif
+    }
   }
 
+#ifdef HAVE_GNUTLS
   /* Process security types which use TLS encryption */
   if (encTLSCheckbox->value()) {
     if (authNoneCheckbox->value())
@@ -386,10 +436,17 @@ void OptionsDialog::storeOptions(void)
       security.EnableSecType(secTypeX509Plain);
   }
 
-  SecurityClient::secTypes.setParam(security.ToString());
-
   CSecurityTLS::X509CA.setParam(caInput->value());
   CSecurityTLS::X509CRL.setParam(crlInput->value());
+#endif
+
+#ifdef HAVE_NETTLE
+  if (encRSAAESCheckbox->value()) {
+    security.EnableSecType(secTypeRA2);
+    security.EnableSecType(secTypeRA256);
+  }
+#endif
+  SecurityClient::secTypes.setParam(security.ToString());
 #endif
 
   /* Input */
@@ -426,7 +483,7 @@ void OptionsDialog::storeOptions(void)
     }
   }
 
-  fullScreenSelectedMonitors.setParam(monitorArrangement->get());
+  fullScreenSelectedMonitors.setParam(monitorArrangement->value());
 
   /* Misc. */
   shared.setParam(sharedCheckbox->value());
@@ -447,7 +504,6 @@ void OptionsDialog::createCompressionPage(int tx, int ty, int tw, int th)
   int orig_tx, orig_ty;
   int col1_ty, col2_ty;
   int half_width, full_width;
-  int height;
 
   tx += OUTER_MARGIN;
   ty += OUTER_MARGIN;
@@ -469,15 +525,15 @@ void OptionsDialog::createCompressionPage(int tx, int ty, int tw, int th)
 
   /* VNC encoding box */
   ty += GROUP_LABEL_OFFSET;
-  height = GROUP_MARGIN * 2 + TIGHT_MARGIN * 4 + RADIO_HEIGHT * 5;
-  encodingGroup = new Fl_Group(tx, ty, half_width, height,
+  encodingGroup = new Fl_Group(tx, ty, half_width, 0,
                                 _("Preferred encoding"));
-  encodingGroup->box(FL_ENGRAVED_BOX);
+  encodingGroup->box(FL_FLAT_BOX);
+  encodingGroup->labelfont(FL_BOLD);
   encodingGroup->align(FL_ALIGN_LEFT | FL_ALIGN_TOP);
 
   {
-    tx += GROUP_MARGIN;
-    ty += GROUP_MARGIN;
+    tx += INDENT;
+    ty += TIGHT_MARGIN;
 
     tightButton = new Fl_Round_Button(LBLRIGHT(tx, ty,
                                                RADIO_MIN_WIDTH,
@@ -517,9 +573,12 @@ void OptionsDialog::createCompressionPage(int tx, int ty, int tw, int th)
     ty += RADIO_HEIGHT + TIGHT_MARGIN;
   }
 
-  ty += GROUP_MARGIN - TIGHT_MARGIN;
+  ty -= TIGHT_MARGIN;
 
   encodingGroup->end();
+  /* Needed for resize to work sanely */
+  encodingGroup->resizable(NULL);
+  encodingGroup->size(encodingGroup->w(), ty - encodingGroup->y());
   col1_ty = ty;
 
   /* Second column */
@@ -528,14 +587,14 @@ void OptionsDialog::createCompressionPage(int tx, int ty, int tw, int th)
 
   /* Color box */
   ty += GROUP_LABEL_OFFSET;
-  height = GROUP_MARGIN * 2 + TIGHT_MARGIN * 3 + RADIO_HEIGHT * 4;
-  colorlevelGroup = new Fl_Group(tx, ty, half_width, height, _("Color level"));
-  colorlevelGroup->box(FL_ENGRAVED_BOX);
+  colorlevelGroup = new Fl_Group(tx, ty, half_width, 0, _("Color level"));
+  colorlevelGroup->labelfont(FL_BOLD);
+  colorlevelGroup->box(FL_FLAT_BOX);
   colorlevelGroup->align(FL_ALIGN_LEFT | FL_ALIGN_TOP);
 
   {
-    tx += GROUP_MARGIN;
-    ty += GROUP_MARGIN;
+    tx += INDENT;
+    ty += TIGHT_MARGIN;
 
     fullcolorCheckbox = new Fl_Round_Button(LBLRIGHT(tx, ty,
                                                      RADIO_MIN_WIDTH,
@@ -566,9 +625,13 @@ void OptionsDialog::createCompressionPage(int tx, int ty, int tw, int th)
     ty += RADIO_HEIGHT + TIGHT_MARGIN;
   }
 
-  ty += GROUP_MARGIN - TIGHT_MARGIN;
+  ty -= TIGHT_MARGIN;
 
   colorlevelGroup->end();
+  /* Needed for resize to work sanely */
+  colorlevelGroup->resizable(NULL);
+  colorlevelGroup->size(colorlevelGroup->w(),
+                        ty - colorlevelGroup->y());
   col2_ty = ty;
 
   /* Back to normal */
@@ -580,6 +643,7 @@ void OptionsDialog::createCompressionPage(int tx, int ty, int tw, int th)
                                                      CHECK_MIN_WIDTH,
                                                      CHECK_HEIGHT,
                                                      _("Custom compression level:")));
+  compressionCheckbox->labelfont(FL_BOLD);
   compressionCheckbox->callback(handleCompression, this);
   ty += CHECK_HEIGHT + TIGHT_MARGIN;
 
@@ -593,6 +657,7 @@ void OptionsDialog::createCompressionPage(int tx, int ty, int tw, int th)
                                               CHECK_MIN_WIDTH,
                                               CHECK_HEIGHT,
                                               _("Allow JPEG compression:")));
+  jpegCheckbox->labelfont(FL_BOLD);
   jpegCheckbox->callback(handleJpeg, this);
   ty += CHECK_HEIGHT + TIGHT_MARGIN;
 
@@ -608,11 +673,11 @@ void OptionsDialog::createCompressionPage(int tx, int ty, int tw, int th)
 
 void OptionsDialog::createSecurityPage(int tx, int ty, int tw, int th)
 {
-#ifdef HAVE_GNUTLS
+#if defined(HAVE_GNUTLS) || defined(HAVE_NETTLE)
   Fl_Group *group = new Fl_Group(tx, ty, tw, th, _("Security"));
 
   int orig_tx;
-  int width, height;
+  int width;
 
   tx += OUTER_MARGIN;
   ty += OUTER_MARGIN;
@@ -623,14 +688,14 @@ void OptionsDialog::createSecurityPage(int tx, int ty, int tw, int th)
 
   /* Encryption */
   ty += GROUP_LABEL_OFFSET;
-  height = GROUP_MARGIN * 2 + TIGHT_MARGIN * 4 + CHECK_HEIGHT * 3 + (INPUT_LABEL_OFFSET + INPUT_HEIGHT) * 2;
-  encryptionGroup = new Fl_Group(tx, ty, width, height, _("Encryption"));
-  encryptionGroup->box(FL_ENGRAVED_BOX);
+  encryptionGroup = new Fl_Group(tx, ty, width, 0, _("Encryption"));
+  encryptionGroup->labelfont(FL_BOLD);
+  encryptionGroup->box(FL_FLAT_BOX);
   encryptionGroup->align(FL_ALIGN_LEFT | FL_ALIGN_TOP);
 
   {
-    tx += GROUP_MARGIN;
-    ty += GROUP_MARGIN;
+    tx += INDENT;
+    ty += TIGHT_MARGIN;
 
     encNoneCheckbox = new Fl_Check_Button(LBLRIGHT(tx, ty,
                                                    CHECK_MIN_WIDTH,
@@ -638,6 +703,7 @@ void OptionsDialog::createSecurityPage(int tx, int ty, int tw, int th)
                                                    _("None")));
     ty += CHECK_HEIGHT + TIGHT_MARGIN;
 
+#ifdef HAVE_GNUTLS
     encTLSCheckbox = new Fl_Check_Button(LBLRIGHT(tx, ty,
                                                   CHECK_MIN_WIDTH,
                                                   CHECK_HEIGHT,
@@ -653,22 +719,35 @@ void OptionsDialog::createSecurityPage(int tx, int ty, int tw, int th)
 
     ty += INPUT_LABEL_OFFSET;
     caInput = new Fl_Input(tx + INDENT, ty, 
-                           width - GROUP_MARGIN*2 - INDENT, INPUT_HEIGHT,
+                           width - INDENT * 2, INPUT_HEIGHT,
                            _("Path to X509 CA certificate"));
     caInput->align(FL_ALIGN_LEFT | FL_ALIGN_TOP);
     ty += INPUT_HEIGHT + TIGHT_MARGIN;
 
     ty += INPUT_LABEL_OFFSET;
     crlInput = new Fl_Input(tx + INDENT, ty,
-                            width - GROUP_MARGIN*2 - INDENT, INPUT_HEIGHT,
+                            width - INDENT * 2, INPUT_HEIGHT,
                             _("Path to X509 CRL file"));
     crlInput->align(FL_ALIGN_LEFT | FL_ALIGN_TOP);
     ty += INPUT_HEIGHT + TIGHT_MARGIN;
+#endif
+#ifdef HAVE_NETTLE
+    encRSAAESCheckbox = new Fl_Check_Button(LBLRIGHT(tx, ty,
+                                                     CHECK_MIN_WIDTH,
+                                                     CHECK_HEIGHT,
+                                                     "RSA-AES"));
+    encRSAAESCheckbox->callback(handleRSAAES, this);
+    ty += CHECK_HEIGHT + TIGHT_MARGIN;
+#endif
   }
 
-  ty += GROUP_MARGIN - TIGHT_MARGIN;
+  ty -= TIGHT_MARGIN;
 
   encryptionGroup->end();
+  /* Needed for resize to work sanely */
+  encryptionGroup->resizable(NULL);
+  encryptionGroup->size(encryptionGroup->w(),
+                        ty - encryptionGroup->y());
 
   /* Back to normal */
   tx = orig_tx;
@@ -676,14 +755,14 @@ void OptionsDialog::createSecurityPage(int tx, int ty, int tw, int th)
 
   /* Authentication */
   ty += GROUP_LABEL_OFFSET;
-  height = GROUP_MARGIN * 2 + TIGHT_MARGIN * 2 + CHECK_HEIGHT * 3;
-  authenticationGroup = new Fl_Group(tx, ty, width, height, _("Authentication"));
-  authenticationGroup->box(FL_ENGRAVED_BOX);
+  authenticationGroup = new Fl_Group(tx, ty, width, 0, _("Authentication"));
+  authenticationGroup->labelfont(FL_BOLD);
+  authenticationGroup->box(FL_FLAT_BOX);
   authenticationGroup->align(FL_ALIGN_LEFT | FL_ALIGN_TOP);
 
   {
-    tx += GROUP_MARGIN;
-    ty += GROUP_MARGIN;
+    tx += INDENT;
+    ty += TIGHT_MARGIN;
 
     authNoneCheckbox = new Fl_Check_Button(LBLRIGHT(tx, ty,
                                                     CHECK_MIN_WIDTH,
@@ -704,9 +783,13 @@ void OptionsDialog::createSecurityPage(int tx, int ty, int tw, int th)
     ty += CHECK_HEIGHT + TIGHT_MARGIN;
   }
 
-  ty += GROUP_MARGIN - TIGHT_MARGIN;
+  ty -= TIGHT_MARGIN;
 
   authenticationGroup->end();
+  /* Needed for resize to work sanely */
+  authenticationGroup->resizable(NULL);
+  authenticationGroup->size(authenticationGroup->w(),
+                            ty - authenticationGroup->y());
 
   /* Back to normal */
   tx = orig_tx;
@@ -733,22 +816,20 @@ void OptionsDialog::createInputPage(int tx, int ty, int tw, int th)
                                                   CHECK_MIN_WIDTH,
                                                   CHECK_HEIGHT,
                                                   _("View only (ignore mouse and keyboard)")));
-  ty += CHECK_HEIGHT + TIGHT_MARGIN;
+  ty += CHECK_HEIGHT + INNER_MARGIN;
 
   orig_tx = tx;
 
   /* Mouse */
   ty += GROUP_LABEL_OFFSET;
   mouseGroup = new Fl_Group(tx, ty, width, 0, _("Mouse"));
-  mouseGroup->box(FL_ENGRAVED_BOX);
+  mouseGroup->labelfont(FL_BOLD);
+  mouseGroup->box(FL_FLAT_BOX);
   mouseGroup->align(FL_ALIGN_LEFT | FL_ALIGN_TOP);
 
-  /* Needed for final resize to work sanely */
-  mouseGroup->resizable(NULL);
-
   {
-    tx += GROUP_MARGIN;
-    ty += GROUP_MARGIN;
+    tx += INDENT;
+    ty += TIGHT_MARGIN;
 
     emulateMBCheckbox = new Fl_Check_Button(LBLRIGHT(tx, ty,
                                                      CHECK_MIN_WIDTH,
@@ -762,9 +843,11 @@ void OptionsDialog::createInputPage(int tx, int ty, int tw, int th)
                                                     _("Show dot when no cursor")));
     ty += CHECK_HEIGHT + TIGHT_MARGIN;
   }
-  ty += GROUP_MARGIN - TIGHT_MARGIN;
+  ty -= TIGHT_MARGIN;
 
   mouseGroup->end();
+  /* Needed for resize to work sanely */
+  mouseGroup->resizable(NULL);
   mouseGroup->size(mouseGroup->w(), ty - mouseGroup->y());
 
   /* Back to normal */
@@ -774,15 +857,13 @@ void OptionsDialog::createInputPage(int tx, int ty, int tw, int th)
   /* Keyboard */
   ty += GROUP_LABEL_OFFSET;
   keyboardGroup = new Fl_Group(tx, ty, width, 0, _("Keyboard"));
-  keyboardGroup->box(FL_ENGRAVED_BOX);
+  keyboardGroup->labelfont(FL_BOLD);
+  keyboardGroup->box(FL_FLAT_BOX);
   keyboardGroup->align(FL_ALIGN_LEFT | FL_ALIGN_TOP);
 
-  /* Needed for final resize to work sanely */
-  keyboardGroup->resizable(NULL);
-
   {
-    tx += GROUP_MARGIN;
-    ty += GROUP_MARGIN;
+    tx += INDENT;
+    ty += TIGHT_MARGIN;
 
     systemKeysCheckbox = new Fl_Check_Button(LBLRIGHT(tx, ty,
                                                       CHECK_MIN_WIDTH,
@@ -798,9 +879,11 @@ void OptionsDialog::createInputPage(int tx, int ty, int tw, int th)
 
     ty += CHOICE_HEIGHT + TIGHT_MARGIN;
   }
-  ty += GROUP_MARGIN - TIGHT_MARGIN;
+  ty -= TIGHT_MARGIN;
 
   keyboardGroup->end();
+  /* Needed for resize to work sanely */
+  keyboardGroup->resizable(NULL);
   keyboardGroup->size(keyboardGroup->w(), ty - keyboardGroup->y());
 
   /* Back to normal */
@@ -810,15 +893,13 @@ void OptionsDialog::createInputPage(int tx, int ty, int tw, int th)
   /* Clipboard */
   ty += GROUP_LABEL_OFFSET;
   clipboardGroup = new Fl_Group(tx, ty, width, 0, _("Clipboard"));
-  clipboardGroup->box(FL_ENGRAVED_BOX);
+  clipboardGroup->labelfont(FL_BOLD);
+  clipboardGroup->box(FL_FLAT_BOX);
   clipboardGroup->align(FL_ALIGN_LEFT | FL_ALIGN_TOP);
 
-  /* Needed for final resize to work sanely */
-  clipboardGroup->resizable(NULL);
-
   {
-    tx += GROUP_MARGIN;
-    ty += GROUP_MARGIN;
+    tx += INDENT;
+    ty += TIGHT_MARGIN;
 
     acceptClipboardCheckbox = new Fl_Check_Button(LBLRIGHT(tx, ty,
                                                            CHECK_MIN_WIDTH,
@@ -850,9 +931,11 @@ void OptionsDialog::createInputPage(int tx, int ty, int tw, int th)
     ty += CHECK_HEIGHT + TIGHT_MARGIN;
 #endif
   }
-  ty += GROUP_MARGIN - TIGHT_MARGIN;
+  ty -= TIGHT_MARGIN;
 
   clipboardGroup->end();
+  /* Needed for resize to work sanely */
+  clipboardGroup->resizable(NULL);
   clipboardGroup->size(clipboardGroup->w(), ty - clipboardGroup->y());
 
   /* Back to normal */
@@ -880,16 +963,14 @@ void OptionsDialog::createDisplayPage(int tx, int ty, int tw, int th)
   /* Display mode */
   ty += GROUP_LABEL_OFFSET;
   displayModeGroup = new Fl_Group(tx, ty, width, 0, _("Display mode"));
-  displayModeGroup->box(FL_ENGRAVED_BOX);
+  displayModeGroup->labelfont(FL_BOLD);
+  displayModeGroup->box(FL_FLAT_BOX);
   displayModeGroup->align(FL_ALIGN_LEFT | FL_ALIGN_TOP);
 
-  /* Needed for final resize to work sanely */
-  displayModeGroup->resizable(NULL);
-
   {
-    tx += GROUP_MARGIN;
-    ty += GROUP_MARGIN;
-    width -= GROUP_MARGIN * 2;
+    tx += INDENT;
+    ty += TIGHT_MARGIN;
+    width -= INDENT;
 
     windowedButton = new Fl_Round_Button(LBLRIGHT(tx, ty,
                                                   RADIO_MIN_WIDTH,
@@ -923,14 +1004,16 @@ void OptionsDialog::createDisplayPage(int tx, int ty, int tw, int th)
     selectedMonitorsButton->callback(handleFullScreenMode, this);
     ty += RADIO_HEIGHT + TIGHT_MARGIN;
 
-    monitorArrangement = new MonitorArrangement(
+    monitorArrangement = new Fl_Monitor_Arrangement(
                               tx + INDENT, ty,
                               width - INDENT, 150);
     ty += 150 + TIGHT_MARGIN;
   }
-  ty += GROUP_MARGIN - TIGHT_MARGIN;
+  ty -= TIGHT_MARGIN;
 
   displayModeGroup->end();
+  /* Needed for resize to work sanely */
+  displayModeGroup->resizable(NULL);
   displayModeGroup->size(displayModeGroup->w(),
                          ty - displayModeGroup->y());
 
@@ -945,7 +1028,7 @@ void OptionsDialog::createDisplayPage(int tx, int ty, int tw, int th)
 
 void OptionsDialog::createMiscPage(int tx, int ty, int tw, int th)
 {
-  Fl_Group *group = new Fl_Group(tx, ty, tw, th, _("Misc."));
+  Fl_Group *group = new Fl_Group(tx, ty, tw, th, _("Miscellaneous"));
 
   tx += OUTER_MARGIN;
   ty += OUTER_MARGIN;
@@ -966,7 +1049,7 @@ void OptionsDialog::createMiscPage(int tx, int ty, int tw, int th)
 }
 
 
-void OptionsDialog::handleAutoselect(Fl_Widget *widget, void *data)
+void OptionsDialog::handleAutoselect(Fl_Widget* /*widget*/, void *data)
 {
   OptionsDialog *dialog = (OptionsDialog*)data;
 
@@ -983,7 +1066,7 @@ void OptionsDialog::handleAutoselect(Fl_Widget *widget, void *data)
 }
 
 
-void OptionsDialog::handleCompression(Fl_Widget *widget, void *data)
+void OptionsDialog::handleCompression(Fl_Widget* /*widget*/, void *data)
 {
   OptionsDialog *dialog = (OptionsDialog*)data;
 
@@ -994,7 +1077,7 @@ void OptionsDialog::handleCompression(Fl_Widget *widget, void *data)
 }
 
 
-void OptionsDialog::handleJpeg(Fl_Widget *widget, void *data)
+void OptionsDialog::handleJpeg(Fl_Widget* /*widget*/, void *data)
 {
   OptionsDialog *dialog = (OptionsDialog*)data;
 
@@ -1006,7 +1089,7 @@ void OptionsDialog::handleJpeg(Fl_Widget *widget, void *data)
 }
 
 
-void OptionsDialog::handleX509(Fl_Widget *widget, void *data)
+void OptionsDialog::handleX509(Fl_Widget* /*widget*/, void *data)
 {
   OptionsDialog *dialog = (OptionsDialog*)data;
 
@@ -1020,8 +1103,20 @@ void OptionsDialog::handleX509(Fl_Widget *widget, void *data)
 }
 
 
-void OptionsDialog::handleClipboard(Fl_Widget *widget, void *data)
+void OptionsDialog::handleRSAAES(Fl_Widget* /*widget*/, void *data)
 {
+  OptionsDialog *dialog = (OptionsDialog*)data;
+
+  if (dialog->encRSAAESCheckbox->value()) {
+    dialog->authVncCheckbox->value(true);
+    dialog->authPlainCheckbox->value(true);
+  }
+}
+
+
+void OptionsDialog::handleClipboard(Fl_Widget* /*widget*/, void *data)
+{
+  (void)data;
 #if !defined(WIN32) && !defined(__APPLE__)
   OptionsDialog *dialog = (OptionsDialog*)data;
 
@@ -1036,7 +1131,7 @@ void OptionsDialog::handleClipboard(Fl_Widget *widget, void *data)
 #endif
 }
 
-void OptionsDialog::handleFullScreenMode(Fl_Widget *widget, void *data)
+void OptionsDialog::handleFullScreenMode(Fl_Widget* /*widget*/, void *data)
 {
   OptionsDialog *dialog = (OptionsDialog*)data;
 
@@ -1047,7 +1142,7 @@ void OptionsDialog::handleFullScreenMode(Fl_Widget *widget, void *data)
   }
 }
 
-void OptionsDialog::handleCancel(Fl_Widget *widget, void *data)
+void OptionsDialog::handleCancel(Fl_Widget* /*widget*/, void *data)
 {
   OptionsDialog *dialog = (OptionsDialog*)data;
 
@@ -1055,7 +1150,7 @@ void OptionsDialog::handleCancel(Fl_Widget *widget, void *data)
 }
 
 
-void OptionsDialog::handleOK(Fl_Widget *widget, void *data)
+void OptionsDialog::handleOK(Fl_Widget* /*widget*/, void *data)
 {
   OptionsDialog *dialog = (OptionsDialog*)data;
 
@@ -1086,5 +1181,5 @@ void OptionsDialog::handleScreenConfigTimeout(void *data)
 
     assert(self);
 
-    self->monitorArrangement->set(fullScreenSelectedMonitors.getParam());
+    self->monitorArrangement->value(fullScreenSelectedMonitors.getParam());
 }

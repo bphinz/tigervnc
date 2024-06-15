@@ -33,7 +33,8 @@ namespace rfb {
       H264WinDecoderContext(const Rect &r) : H264DecoderContext(r) {};
       ~H264WinDecoderContext() { freeCodec(); }
 
-      virtual void decode(const rdr::U8* h264_buffer, rdr::U32 len, rdr::U32 flags, ModifiablePixelBuffer* pb);
+      virtual void decode(const uint8_t* h264_buffer, uint32_t len,
+                          ModifiablePixelBuffer* pb);
 
     protected:
       virtual bool initCodec();
@@ -41,6 +42,12 @@ namespace rfb {
 
     private:
       LONG stride;
+      uint32_t full_width = 0;
+      uint32_t full_height = 0;
+      uint32_t crop_width = 0;
+      uint32_t crop_height = 0;
+      uint32_t offset_x = 0;
+      uint32_t offset_y = 0;
       IMFTransform *decoder = NULL;
       IMFTransform *converter = NULL;
       IMFSample *input_sample = NULL;
@@ -49,6 +56,8 @@ namespace rfb {
       IMFMediaBuffer *input_buffer = NULL;
       IMFMediaBuffer *decoded_buffer = NULL;
       IMFMediaBuffer *converted_buffer = NULL;
+
+      void ParseSPS(const uint8_t* buffer, int length);
   };
 }
 

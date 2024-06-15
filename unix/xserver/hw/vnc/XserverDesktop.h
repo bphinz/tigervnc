@@ -42,7 +42,7 @@ namespace rfb {
   class VNCServerST;
 }
 
-namespace network { class SocketListener; class Socket; class SocketServer; }
+namespace network { class SocketListener; class Socket; }
 
 class XserverDesktop : public rfb::SDesktop, public rfb::FullFramePixelBuffer,
                        public rfb::Timer::Callback {
@@ -72,7 +72,7 @@ public:
   void add_copied(const rfb::Region &dest, const rfb::Point &delta);
   void handleSocketEvent(int fd, bool read, bool write);
   void blockHandler(int* timeout);
-  void addClient(network::Socket* sock, bool reverse);
+  void addClient(network::Socket* sock, bool reverse, bool viewOnly);
   void disconnectClients();
 
   // QueryConnect methods called from X server code
@@ -94,7 +94,7 @@ public:
   virtual void queryConnection(network::Socket* sock,
                                const char* userName);
   virtual void pointerEvent(const rfb::Point& pos, int buttonMask);
-  virtual void keyEvent(rdr::U32 keysym, rdr::U32 keycode, bool down);
+  virtual void keyEvent(uint32_t keysym, uint32_t keycode, bool down);
   virtual unsigned int setScreenLayout(int fb_width, int fb_height,
                                        const rfb::ScreenSet& layout);
   virtual void handleClipboardRequest();
@@ -107,9 +107,9 @@ public:
 protected:
   bool handleListenerEvent(int fd,
                            std::list<network::SocketListener*>* sockets,
-                           network::SocketServer* sockserv);
+                           rfb::VNCServer* sockserv);
   bool handleSocketEvent(int fd,
-                         network::SocketServer* sockserv,
+                         rfb::VNCServer* sockserv,
                          bool read, bool write);
 
   virtual bool handleTimeout(rfb::Timer* t);
@@ -119,12 +119,12 @@ private:
   int screenIndex;
   rfb::VNCServer* server;
   std::list<network::SocketListener*> listeners;
-  rdr::U8* shadowFramebuffer;
+  uint8_t* shadowFramebuffer;
 
   uint32_t queryConnectId;
   network::Socket* queryConnectSocket;
-  rfb::CharArray queryConnectAddress;
-  rfb::CharArray queryConnectUsername;
+  std::string queryConnectAddress;
+  std::string queryConnectUsername;
   rfb::Timer queryConnectTimer;
 
   OutputIdMap outputIdMap;

@@ -33,7 +33,6 @@
 #include <rfb/Configuration.h>
 #include <rfb/Logger_stdio.h>
 #include <rfb/LogWriter.h>
-#include <rfb/util.h>
 #include <rfb/ServerCore.h>
 #include <rdr/HexOutStream.h>
 #include <rfb/LogWriter.h>
@@ -230,6 +229,7 @@ void vncExtensionInit(void)
         }
 
         if (!inetd && rfbport != -1) {
+          std::list<network::SocketListener*> tcp_listeners;
           const char *addr = interface;
           int port = rfbport;
           if (port == 0) port = 5900 + atoi(vncGetDisplay());
@@ -237,22 +237,27 @@ void vncExtensionInit(void)
           if (strcasecmp(addr, "all") == 0)
             addr = 0;
           if (localhostOnly)
-            network::createLocalTcpListeners(&listeners, port);
+            network::createLocalTcpListeners(&tcp_listeners, port);
           else
-            network::createTcpListeners(&listeners, addr, port);
+            network::createTcpListeners(&tcp_listeners, addr, port);
 
-          vlog.info("Listening for VNC connections on %s interface(s), port %d",
-                    localhostOnly ? "local" : (const char*)interface,
-                    port);
+          if (!tcp_listeners.empty()) {
+            listeners.splice (listeners.end(), tcp_listeners);
+            vlog.info("Listening for VNC connections on %s interface(s), port %d",
+                      localhostOnly ? "local" : (const char*)interface,
+                      port);
+          }
         }
 
-        CharArray desktopNameStr(desktopName.getData());
+        if (!inetd && listeners.empty())
+          throw rdr::Exception("No path or port configured for incoming connections");
+
         PixelFormat pf = vncGetPixelFormat(scr);
 
         vncSetGlueContext(scr);
         desktop[scr] = new XserverDesktop(scr,
                                           listeners,
-                                          desktopNameStr.buf,
+                                          desktopName,
                                           pf,
                                           vncGetScreenWidth(),
                                           vncGetScreenHeight(),
@@ -262,7 +267,7 @@ void vncExtensionInit(void)
 
         if (scr == 0 && vncInetdSock != -1 && listeners.empty()) {
           network::Socket* sock = new network::TcpSocket(vncInetdSock);
-          desktop[scr]->addClient(sock, false);
+          desktop[scr]->addClient(sock, false, false);
           vlog.info("added inetd sock");
         }
       }
@@ -338,7 +343,7 @@ void vncSendClipboardData(const char* data)
     desktop[scr]->sendClipboardData(data);
 }
 
-int vncConnectClient(const char *addr)
+int vncConnectClient(const char *addr, int viewOnly)
 {
   if (strlen(addr) == 0) {
     try {
@@ -350,15 +355,16 @@ int vncConnectClient(const char *addr)
     return 0;
   }
 
-  char *host;
+  std::string host;
   int port;
 
   getHostAndPort(addr, &host, &port, 5500);
 
   try {
-    network::Socket* sock = new network::TcpSocket(host, port);
-    delete [] host;
-    desktop[0]->addClient(sock, true);
+    network::Socket* sock = new network::TcpSocket(host.c_str(), port);
+    vlog.info("Reverse connection: %s:%d%s", host.c_str(), port,
+              viewOnly ? " (view only)" : "");
+    desktop[0]->addClient(sock, true, (bool)viewOnly);
   } catch (rdr::Exception& e) {
     vlog.error("Reverse connection: %s",e.str());
     return -1;

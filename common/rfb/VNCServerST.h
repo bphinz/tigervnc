@@ -51,12 +51,13 @@ namespace rfb {
     virtual ~VNCServerST();
 
 
-    // Methods overridden from SocketServer
+    // Methods overridden from VNCServer
 
     // addSocket
     //   Causes the server to allocate an RFB-protocol management
     //   structure for the socket & initialise it.
-    virtual void addSocket(network::Socket* sock, bool outgoing=false);
+    virtual void addSocket(network::Socket* sock, bool outgoing=false,
+                           AccessRights ar=AccessDefault);
 
     // removeSocket
     //   Clean up any resources associated with the Socket
@@ -75,9 +76,6 @@ namespace rfb {
     // processSocketWriteEvent
     //   Flush pending data from the Socket on to the network.
     virtual void processSocketWriteEvent(network::Socket* sock);
-
-
-    // Methods overridden from VNCServer
 
     virtual void blockUpdates();
     virtual void unblockUpdates();
@@ -98,7 +96,7 @@ namespace rfb {
     virtual void add_changed(const Region &region);
     virtual void add_copied(const Region &dest, const Point &delta);
     virtual void setCursor(int width, int height, const Point& hotspot,
-                           const rdr::U8* data);
+                           const uint8_t* data);
     virtual void setCursorPos(const Point& p, bool warped);
     virtual void setName(const char* name_);
     virtual void setLEDState(unsigned state);
@@ -112,11 +110,11 @@ namespace rfb {
     const ScreenSet& getScreenLayout() const { return screenLayout; }
     const Cursor* getCursor() const { return cursor; }
     const Point& getCursorPos() const { return cursorPos; }
-    const char* getName() const { return name.buf; }
+    const char* getName() const { return name.c_str(); }
     unsigned getLEDState() const { return ledState; }
 
     // Event handlers
-    void keyEvent(rdr::U32 keysym, rdr::U32 keycode, bool down);
+    void keyEvent(uint32_t keysym, uint32_t keycode, bool down);
     void pointerEvent(VNCSConnectionST* client, const Point& pos, int buttonMask);
 
     void handleClipboardRequest(VNCSConnectionST* client);
@@ -183,13 +181,15 @@ namespace rfb {
     ScreenSet screenLayout;
     unsigned int ledState;
 
-    CharArray name;
+    std::string name;
 
     std::list<VNCSConnectionST*> clients;
     VNCSConnectionST* pointerClient;
     VNCSConnectionST* clipboardClient;
     std::list<VNCSConnectionST*> clipboardRequestors;
     std::list<network::Socket*> closingSockets;
+
+    time_t pointerClientTime;
 
     ComparingUpdateTracker* comparer;
 

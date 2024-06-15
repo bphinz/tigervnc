@@ -126,12 +126,12 @@ void XserverDesktop::setFramebuffer(int w, int h, void* fbptr, int stride_)
   }
 
   if (!fbptr) {
-    shadowFramebuffer = new rdr::U8[w * h * (format.bpp/8)];
+    shadowFramebuffer = new uint8_t[w * h * (format.bpp/8)];
     fbptr = shadowFramebuffer;
     stride_ = w;
   }
 
-  setBuffer(w, h, (rdr::U8*)fbptr, stride_);
+  setBuffer(w, h, (uint8_t*)fbptr, stride_);
 
   vncSetGlueContext(screenIndex);
   layout = ::computeScreenLayout(&outputIdMap);
@@ -172,10 +172,10 @@ void XserverDesktop::queryConnection(network::Socket* sock,
     return;
   }
 
-  queryConnectAddress.replaceBuf(sock->getPeerAddress());
+  queryConnectAddress = sock->getPeerAddress();
   if (!userName)
     userName = "(anonymous)";
-  queryConnectUsername.replaceBuf(strDup(userName));
+  queryConnectUsername = userName;
   queryConnectId = (uint32_t)(intptr_t)sock;
   queryConnectSocket = sock;
 
@@ -231,19 +231,19 @@ void XserverDesktop::setDesktopName(const char* name)
 void XserverDesktop::setCursor(int width, int height, int hotX, int hotY,
                                const unsigned char *rgbaData)
 {
-  rdr::U8* cursorData;
+  uint8_t* cursorData;
 
-  rdr::U8 *out;
+  uint8_t *out;
   const unsigned char *in;
 
-  cursorData = new rdr::U8[width * height * 4];
+  cursorData = new uint8_t[width * height * 4];
 
   // Un-premultiply alpha
   in = rgbaData;
   out = cursorData;
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
-      rdr::U8 alpha;
+      uint8_t alpha;
 
       alpha = in[3];
       if (alpha == 0)
@@ -311,7 +311,7 @@ void XserverDesktop::handleSocketEvent(int fd, bool read, bool write)
 
 bool XserverDesktop::handleListenerEvent(int fd,
                                          std::list<SocketListener*>* sockets,
-                                         SocketServer* sockserv)
+                                         VNCServer* sockserv)
 {
   std::list<SocketListener*>::iterator i;
 
@@ -332,7 +332,7 @@ bool XserverDesktop::handleListenerEvent(int fd,
 }
 
 bool XserverDesktop::handleSocketEvent(int fd,
-                                       SocketServer* sockserv,
+                                       VNCServer* sockserv,
                                        bool read, bool write)
 {
   std::list<Socket*> sockets;
@@ -402,10 +402,10 @@ void XserverDesktop::blockHandler(int* timeout)
   }
 }
 
-void XserverDesktop::addClient(Socket* sock, bool reverse)
+void XserverDesktop::addClient(Socket* sock, bool reverse, bool viewOnly)
 {
   vlog.debug("new client, sock %d reverse %d",sock->getFd(),reverse);
-  server->addSocket(sock, reverse);
+  server->addSocket(sock, reverse, viewOnly ? AccessView : AccessDefault);
   vncSetNotifyFd(sock->getFd(), screenIndex, true, false);
 }
 
@@ -428,8 +428,8 @@ void XserverDesktop::getQueryConnect(uint32_t* opaqueId,
     *username = "";
     *timeout = 0;
   } else {
-    *address = queryConnectAddress.buf;
-    *username = queryConnectUsername.buf;
+    *address = queryConnectAddress.c_str();
+    *username = queryConnectUsername.c_str();
     *timeout = queryConnectTimeout;
   }
 }
@@ -500,7 +500,7 @@ void XserverDesktop::grabRegion(const rfb::Region& region)
   std::vector<rfb::Rect>::iterator i;
   region.get_rects(&rects);
   for (i = rects.begin(); i != rects.end(); i++) {
-    rdr::U8 *buffer;
+    uint8_t *buffer;
     int bufStride;
 
     buffer = getBufferRW(*i, &bufStride);
@@ -510,7 +510,7 @@ void XserverDesktop::grabRegion(const rfb::Region& region)
   }
 }
 
-void XserverDesktop::keyEvent(rdr::U32 keysym, rdr::U32 keycode, bool down)
+void XserverDesktop::keyEvent(uint32_t keysym, uint32_t keycode, bool down)
 {
   if (!rawKeyboard)
     keycode = 0;

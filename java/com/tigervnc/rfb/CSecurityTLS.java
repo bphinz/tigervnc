@@ -66,7 +66,6 @@ public class CSecurityTLS extends CSecurity {
   public static StringParameter X509CRL
   = new StringParameter("X509CRL",
                         "X509 CRL file", "", Configuration.ConfigurationObject.ConfViewer);
-  public static UserMsgBox msg;
 
   private void initGlobal()
   {
@@ -90,13 +89,13 @@ public class CSecurityTLS extends CSecurity {
   public static String getDefaultCA() {
     if (UserPreferences.get("viewer", "x509ca") != null)
       return UserPreferences.get("viewer", "x509ca");
-    return FileUtils.getVncHomeDir()+"x509_ca.pem";
+    return FileUtils.getVncConfigDir()+"x509_ca.pem";
   }
 
   public static String getDefaultCRL() {
     if (UserPreferences.get("viewer", "x509crl") != null)
       return UserPreferences.get("viewer", "x509crl");
-    return FileUtils.getVncHomeDir()+"x509_crl.pem";
+    return FileUtils.getVncConfigDir()+"x509_crl.pem";
   }
 
   public static void setDefaults()
@@ -278,12 +277,12 @@ public class CSecurityTLS extends CSecurity {
 			      "do you want to continue?"))
           throw new AuthFailureException("server certificate has expired");
       }
-      File vncDir = new File(FileUtils.getVncHomeDir());
+      File vncDir = new File(FileUtils.getVncStateDir());
       if (!vncDir.exists()) {
         try {
           vncDir.mkdir();
         } catch(SecurityException e) {
-          throw new AuthFailureException("Could not obtain VNC home directory "+
+          throw new AuthFailureException("Could not obtain VNC state directory "+
                                          "path for known hosts storage");
         }
       }
@@ -357,7 +356,6 @@ public class CSecurityTLS extends CSecurity {
     private void store_pubkey(File dbPath, String serverName, String pk)
     {
       ArrayList<String> lines = new ArrayList<String>();
-      File vncDir = new File(FileUtils.getVncHomeDir());
       try {
         if (dbPath.exists()) {
           FileReader db = new FileReader(dbPath);

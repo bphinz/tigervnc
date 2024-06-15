@@ -24,9 +24,12 @@
 #ifndef __RFB_SCONNECTION_H__
 #define __RFB_SCONNECTION_H__
 
+#include <string>
+
 #include <rdr/InStream.h>
 #include <rdr/OutStream.h>
 
+#include <rfb/AccessRights.h>
 #include <rfb/SMsgHandler.h>
 #include <rfb/SecurityServer.h>
 #include <rfb/Timer.h>
@@ -40,7 +43,7 @@ namespace rfb {
   class SConnection : public SMsgHandler {
   public:
 
-    SConnection();
+    SConnection(AccessRights accessRights);
     virtual ~SConnection();
 
     // Methods to initialise the connection
@@ -80,16 +83,16 @@ namespace rfb {
 
     // Overridden from SMsgHandler
 
-    virtual void setEncodings(int nEncodings, const rdr::S32* encodings);
+    virtual void setEncodings(int nEncodings, const int32_t* encodings);
 
     virtual void clientCutText(const char* str);
 
-    virtual void handleClipboardRequest(rdr::U32 flags);
-    virtual void handleClipboardPeek(rdr::U32 flags);
-    virtual void handleClipboardNotify(rdr::U32 flags);
-    virtual void handleClipboardProvide(rdr::U32 flags,
+    virtual void handleClipboardRequest(uint32_t flags);
+    virtual void handleClipboardPeek();
+    virtual void handleClipboardNotify(uint32_t flags);
+    virtual void handleClipboardProvide(uint32_t flags,
                                         const size_t* lengths,
-                                        const rdr::U8* const* data);
+                                        const uint8_t* const* data);
 
     virtual void supportsQEMUKeyEvent();
 
@@ -130,7 +133,7 @@ namespace rfb {
     // it responds directly to requests (stating it doesn't support any
     // synchronisation) and drops responses. Override to implement more proper
     // support.
-    virtual void fence(rdr::U32 flags, unsigned len, const char data[]);
+    virtual void fence(uint32_t flags, unsigned len, const uint8_t data[]);
 
     // enableContinuousUpdates() is called when the client wants to enable
     // or disable continuous updates, or change the active area.
@@ -173,20 +176,12 @@ namespace rfb {
     // clipboard via handleClipboardRequest().
     virtual void sendClipboardData(const char* data);
 
+    // getAccessRights() returns the access rights of a SConnection to the server.
+    AccessRights getAccessRights() { return accessRights; }
+
     // setAccessRights() allows a security package to limit the access rights
     // of a SConnection to the server.  How the access rights are treated
     // is up to the derived class.
-
-    typedef rdr::U16 AccessRights;
-    static const AccessRights AccessView;           // View display contents
-    static const AccessRights AccessKeyEvents;      // Send key events
-    static const AccessRights AccessPtrEvents;      // Send pointer events
-    static const AccessRights AccessCutText;        // Send/receive clipboard events
-    static const AccessRights AccessSetDesktopSize; // Change desktop size
-    static const AccessRights AccessNonShared;      // Exclusive access to the server
-    static const AccessRights AccessDefault;        // The default rights, INCLUDING FUTURE ONES
-    static const AccessRights AccessNoQuery;        // Connect without local user accepting
-    static const AccessRights AccessFull;           // All of the available AND FUTURE rights
     virtual void setAccessRights(AccessRights ar);
     virtual bool accessCheck(AccessRights ar) const;
 
@@ -216,13 +211,14 @@ namespace rfb {
 
     stateEnum state() { return state_; }
 
-    rdr::S32 getPreferredEncoding() { return preferredEncoding; }
+    int32_t getPreferredEncoding() { return preferredEncoding; }
 
   protected:
     // throwConnFailedException() prints a message to the log, sends a conn
     // failed message to the client (if possible) and throws a
     // ConnFailedException.
-    void throwConnFailedException(const char* format, ...) __printf_attr(2, 3);
+    void throwConnFailedException(const char* format, ...)
+      __attribute__((__format__ (__printf__, 2, 3)));
 
     void setState(stateEnum s) { state_ = s; }
 
@@ -256,13 +252,14 @@ namespace rfb {
     SSecurity* ssecurity;
 
     MethodTimer<SConnection> authFailureTimer;
-    CharArray authFailureMsg;
+    std::string authFailureMsg;
 
     stateEnum state_;
-    rdr::S32 preferredEncoding;
+    int32_t preferredEncoding;
     AccessRights accessRights;
 
-    char* clientClipboard;
+    std::string clientClipboard;
+    bool hasRemoteClipboard;
     bool hasLocalClipboard;
     bool unsolicitedClipboardAttempt;
   };
