@@ -64,6 +64,10 @@ extern core::BoolParameter listenMode;
 extern core::BoolParameter viewOnly;
 extern core::BoolParameter shared;
 
+#ifdef HAVE_AUDIO
+extern core::BoolParameter playAudio;
+#endif
+
 extern core::BoolParameter acceptClipboard;
 extern core::BoolParameter setPrimary;
 extern core::BoolParameter sendClipboard;

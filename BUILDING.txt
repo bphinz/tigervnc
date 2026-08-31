@@ -41,7 +41,6 @@ Build requirements (Unix)
 
 -- Non-Mac platforms:
    * Development kits for all standard X11 libraries
-   * PAM
 
 -- If building Xvnc/libvnc.so:
    * Xorg server source code, 1.20 or later
@@ -54,9 +53,12 @@ Build requirements (Unix)
 -- If building w0vncserver:
    * GLib (Gio + GObject)
    * libpipewire
-   * libuuuid
+   * libuuid
    * libwayland-client
    * libxkbcommon
+
+-- If building vncserver, or server Plain authentication:
+   * PAM
 
 -- Optional ffmpeg development kit support (libav)
    * You might have to enable additional repositories for this. E.g.,
@@ -64,6 +66,9 @@ Build requirements (Unix)
 
 -- If building vncpasswd with password quality check support:
    * libpwquality
+
+-- If building with audio support:
+   * PulseAudio
 
 ============================
 Build requirements (Windows)
