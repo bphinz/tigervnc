@@ -288,8 +288,10 @@ abstract public class CConnection extends CMsgHandler {
       rect.setXYWH(0, 0,
                    Math.min(fb.width(), framebuffer.width()),
                    Math.min(fb.height(), framebuffer.height()));
-      data = framebuffer.getBuffer(rect);
-      fb.imageRect(framebuffer.getPF(), rect, data);
+      if (!rect.is_empty()) {
+        data = framebuffer.getBuffer(rect);
+        fb.imageRect(framebuffer.getPF(), rect, data);
+      }
 
       // Black out any new areas
 
@@ -429,11 +431,15 @@ abstract public class CConnection extends CMsgHandler {
     } else {
 
       if (!is.checkNoWait(1)) return false;
+      is.setRestorePoint();
       int nServerSecTypes = is.readU8();
-      if (nServerSecTypes == 0)
+      if (nServerSecTypes == 0) {
+        is.clearRestorePoint();
         throwConnFailedException();
+      }
 
-      if (!is.checkNoWait(nServerSecTypes)) return false;
+      if (!is.hasDataOrRestore(nServerSecTypes)) return false;
+      is.clearRestorePoint();
 
       Iterator<Integer> j;
 

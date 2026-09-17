@@ -68,7 +68,9 @@ abstract public class InStream {
   // be read without blocking.  It returns true if this is the case, false
   // otherwise.  The length must be "small" (less than the buffer size).
 
-  public final boolean checkNoWait(int length) { return check(length, 1, false)!=0; }
+  public final boolean checkNoWait(int length) {
+    return length == 0 || check(length, 1, false) != 0;
+  }
 
   // readU/SN() methods read unsigned and signed N-bit integers.
 
@@ -107,6 +109,8 @@ abstract public class InStream {
   // higher if you need longer strings.
 
   public static int maxStringLength = 65535;
+
+  public static final int maxBufSize = 32 * 1024 * 1024;
 
   public final void skip(int bytes) {
     while (bytes > 0) {

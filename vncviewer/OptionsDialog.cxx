@@ -1051,7 +1051,7 @@ void OptionsDialog::createShortcutsPage(int tx, int ty, int tw, int th)
   tx += OUTER_MARGIN;
   ty += OUTER_MARGIN;
 
-  Fl_Box *intro = new Fl_Box(tx, ty, tw - OUTER_MARGIN * 2, INPUT_HEIGHT);
+  Fl_Box *intro = fltk_box(tx, ty, tw - OUTER_MARGIN * 2, INPUT_HEIGHT);
   intro->align(FL_ALIGN_TOP_LEFT|FL_ALIGN_INSIDE);
   intro->label(_("Modifier keys for keyboard shortcuts:"));
 
@@ -1107,7 +1107,7 @@ void OptionsDialog::createShortcutsPage(int tx, int ty, int tw, int th)
 
   ty += BUTTON_HEIGHT + INNER_MARGIN;
 
-  shortcutsText = new Fl_Box(tx, ty, tw - OUTER_MARGIN * 2, th - ty - OUTER_MARGIN);
+  shortcutsText = fltk_box(tx, ty, tw - OUTER_MARGIN * 2, th - ty - OUTER_MARGIN);
   shortcutsText->align(FL_ALIGN_TOP_LEFT|FL_ALIGN_INSIDE|FL_ALIGN_WRAP);
 
   group->end();
@@ -1216,7 +1216,7 @@ void OptionsDialog::createDisplayPage(int tx, int ty, int tw, int th)
       w = width;
       fl_measure(label, w, h);
 
-      box = new Fl_Box(tx, ty, w, h, label);
+      box = fltk_box(tx, ty, w, h, label);
       box->align(FL_ALIGN_TOP_LEFT | FL_ALIGN_INSIDE | FL_ALIGN_WRAP);
       ty += h + INNER_MARGIN;
     }
@@ -1298,6 +1298,7 @@ void OptionsDialog::handleCompression(Fl_Widget* /*widget*/, void *data)
 
 void OptionsDialog::handleX509(Fl_Widget* /*widget*/, void *data)
 {
+#ifdef HAVE_GNUTLS
   OptionsDialog *dialog = (OptionsDialog*)data;
 
   if (dialog->encX509Checkbox->value()) {
@@ -1307,17 +1308,24 @@ void OptionsDialog::handleX509(Fl_Widget* /*widget*/, void *data)
     dialog->caInput->deactivate();
     dialog->crlInput->deactivate();
   }
+#else
+  (void)data;
+#endif
 }
 
 
 void OptionsDialog::handleRSAAES(Fl_Widget* /*widget*/, void *data)
 {
+#ifdef HAVE_NETTLE
   OptionsDialog *dialog = (OptionsDialog*)data;
 
   if (dialog->encRSAAESCheckbox->value()) {
     dialog->authVncCheckbox->value(true);
     dialog->authPlainCheckbox->value(true);
   }
+#else
+  (void)data;
+#endif
 }
 
 
